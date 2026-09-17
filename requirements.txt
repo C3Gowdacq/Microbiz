@@ -1,0 +1,24 @@
+# Machine Learning & Data Processing
+pandas
+numpy
+scikit-learn
+torch
+matplotlib
+jupyter
+pyarrow
+xgboost
+
+# Backend & REST API
+fastapi
+uvicorn
+sqlalchemy
+pydantic
+python-dotenv
+httpx
+requests
+
+# LLM & Multi-Agent Intelligence
+groq
+langchain
+langchain-groq
+langgraph
