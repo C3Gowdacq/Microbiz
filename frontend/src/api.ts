@@ -87,6 +87,27 @@ export interface CustomerSummary {
   invoice_history: InvoiceSummaryItem[];
 }
 
+export interface InventoryRisk {
+  product_id: string;
+  product_name: string;
+  sku: string;
+  current_stock: number;
+  avg_daily_demand: number;
+  forecast_demand: number;
+  horizon_days: number;
+  lead_time_days: number;
+  lead_time_demand: number;
+  safety_stock: number;
+  reorder_point: number;
+  coverage_days?: number | null;
+  stock_gap: number;
+  risk_level: 'CRITICAL' | 'HIGH' | 'MEDIUM' | 'LOW' | 'HEALTHY';
+  reorder_needed: boolean;
+  recommended_order_qty: number;
+  model_used: string;
+  scaling_factor: number;
+}
+
 export interface Sale {
   id: number;
   product_id: string;
@@ -96,6 +117,7 @@ export interface Sale {
   quantity: number;
   unit_price: number;
   total_amount: number;
+  inventory_risk?: InventoryRisk | null;
 }
 
 export interface SaleCreate {
@@ -209,6 +231,9 @@ export interface RecommendationRecord {
   suggested_customer_message?: string | null;
   status: 'pending' | 'approved' | 'modified' | 'rejected';
   modified_message?: string | null;
+  entity_type?: string | null;
+  entity_id?: string | null;
+  module?: string | null;
 }
 
 export interface AnalyticsSummary {
@@ -574,6 +599,186 @@ export const actOnForecast = async (
   data: ForecastActRequest
 ): Promise<ForecastActResponse> => {
   const res = await api.post<ForecastActResponse>(`/api/forecasts/${forecastId}/act`, data);
+  return res.data;
+};
+
+// ── 6. Suppliers & Purchase Orders ───────────────────────────────────────────
+
+export interface Supplier {
+  id: number;
+  name: string;
+  contact_name?: string | null;
+  phone?: string | null;
+  email?: string | null;
+  address?: string | null;
+  category?: string | null;
+  is_active: boolean;
+  created_at: string;
+}
+
+export interface SupplierCreate {
+  name: string;
+  contact_name?: string | null;
+  phone?: string | null;
+  email?: string | null;
+  address?: string | null;
+  category?: string | null;
+}
+
+export interface PurchaseOrderItem {
+  id: number;
+  purchase_order_id: number;
+  product_id: string;
+  quantity: number;
+  unit_cost: number;
+  total_cost: number;
+  product_name?: string | null;
+  product_sku?: string | null;
+}
+
+export interface PurchaseOrderItemCreate {
+  product_id: string;
+  quantity: number;
+  unit_cost?: number;
+}
+
+export interface PurchaseOrder {
+  id: number;
+  po_number: string;
+  supplier_id?: number | null;
+  supplier_name?: string | null;
+  status: 'DRAFT' | 'PENDING_APPROVAL' | 'APPROVED' | 'ORDERED' | 'RECEIVED' | 'CANCELLED' | 'REJECTED';
+  total_amount: number;
+  priority: string;
+  reason?: string | null;
+  notes?: string | null;
+  created_at: string;
+  approved_at?: string | null;
+  ordered_at?: string | null;
+  received_at?: string | null;
+  items: PurchaseOrderItem[];
+}
+
+export interface PurchaseOrderCreate {
+  supplier_id?: number | null;
+  priority?: string;
+  reason?: string | null;
+  notes?: string | null;
+  items: PurchaseOrderItemCreate[];
+}
+
+export const getSuppliers = async (activeOnly: boolean = false): Promise<Supplier[]> => {
+  const res = await api.get<Supplier[]>('/api/suppliers', { params: { active_only: activeOnly } });
+  return res.data;
+};
+
+export const createSupplier = async (data: SupplierCreate): Promise<Supplier> => {
+  const res = await api.post<Supplier>('/api/suppliers', data);
+  return res.data;
+};
+
+export const getPurchaseOrders = async (status?: string, supplierId?: number): Promise<PurchaseOrder[]> => {
+  const params: any = {};
+  if (status) params.status = status;
+  if (supplierId) params.supplier_id = supplierId;
+  const res = await api.get<PurchaseOrder[]>('/api/purchase-orders', { params });
+  return res.data;
+};
+
+export const createPurchaseOrder = async (data: PurchaseOrderCreate): Promise<PurchaseOrder> => {
+  const res = await api.post<PurchaseOrder>('/api/purchase-orders', data);
+  return res.data;
+};
+
+export const getPurchaseOrder = async (id: number): Promise<PurchaseOrder> => {
+  const res = await api.get<PurchaseOrder>(`/api/purchase-orders/${id}`);
+  return res.data;
+};
+
+export const updatePurchaseOrderStatus = async (id: number, status: string, notes?: string): Promise<PurchaseOrder> => {
+  const res = await api.patch<PurchaseOrder>(`/api/purchase-orders/${id}/status`, { status, notes });
+  return res.data;
+};
+
+export const receivePurchaseOrder = async (id: number): Promise<PurchaseOrder> => {
+  const res = await api.post<PurchaseOrder>(`/api/purchase-orders/${id}/receive`);
+  return res.data;
+};
+
+// ── 7. Automation & Settings ─────────────────────────────────────────────────
+
+export interface CriticalInventoryItem {
+  id: string;
+  name: string;
+  sku?: string;
+  current_stock: number;
+  reorder_level: number;
+  urgency: 'CRITICAL' | 'HIGH';
+}
+
+export interface AutomationStatus {
+  autonomous_mode: boolean;
+  operational_thresholds: {
+    safety_stock_days: number;
+    review_period_days: number;
+    khata_overdue_days: number;
+    expense_anomaly_threshold_pct: number;
+    high_risk_multiplier: number;
+    medium_risk_multiplier: number;
+  };
+  agents: { name: string; type: string; status: string }[];
+  pending_recommendations_count: number;
+  audit_logs_count: number;
+  recent_runs: any[];
+  critical_inventory?: CriticalInventoryItem[];
+  khata_summary?: {
+    total_overdue: number;
+    overdue_count: number;
+    top_overdue: { customer_name: string; amount: number; days_overdue: number }[];
+  };
+  replenishment_summary?: {
+    pending_po_count: number;
+    total_po_value: number;
+  };
+  solvency_summary?: {
+    current_cash: number;
+    min_reserve: number;
+    status: 'SOLVENT' | 'LOW_RESERVE';
+  };
+}
+
+export interface BusinessSettings {
+  id: number;
+  min_cash_reserve: number;
+  currency: string;
+  safety_stock_days: number;
+  review_period_days: number;
+  khata_overdue_days: number;
+  expense_anomaly_threshold_pct: number;
+  high_risk_multiplier: number;
+  medium_risk_multiplier: number;
+  autonomous_mode: boolean;
+}
+
+export interface BusinessSettingsUpdate {
+  min_cash_reserve?: number;
+  currency?: string;
+  safety_stock_days?: number;
+  review_period_days?: number;
+  khata_overdue_days?: number;
+  expense_anomaly_threshold_pct?: number;
+  high_risk_multiplier?: number;
+  medium_risk_multiplier?: number;
+  autonomous_mode?: boolean;
+}
+
+export const getAutomationStatus = async (): Promise<AutomationStatus> => {
+  const res = await api.get<AutomationStatus>('/api/automation/status');
+  return res.data;
+};
+
+export const toggleAutonomousMode = async (): Promise<BusinessSettings> => {
+  const res = await api.post<BusinessSettings>('/api/settings/toggle-autonomous');
   return res.data;
 };
 

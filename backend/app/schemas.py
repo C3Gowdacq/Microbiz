@@ -140,12 +140,13 @@ class SaleCreate(BaseModel):
 class SaleResponse(BaseModel):
     id:           int
     product_id:   str
-    customer_id:  Optional[str]
-    store_id:     int
-    date:         Optional[DateType]
+    customer_id:  Optional[str] = None
+    store_id:     int = 1
+    date:         Optional[DateType] = None
     quantity:     float
     unit_price:   float
     total_amount: float
+    inventory_risk: Optional[Dict[str, Any]] = None
 
     class Config:
         from_attributes = True
@@ -223,14 +224,30 @@ class BusinessSettingsResponse(BaseModel):
     id:               int
     min_cash_reserve: float
     currency:         str
+    # Phase 1: operational thresholds
+    safety_stock_days:             int   = 3
+    review_period_days:            int   = 7
+    khata_overdue_days:            int   = 30
+    expense_anomaly_threshold_pct: float = 30.0
+    high_risk_multiplier:          float = 1.0
+    medium_risk_multiplier:        float = 1.5
+    autonomous_mode:               bool  = False
 
     class Config:
         from_attributes = True
 
 
 class BusinessSettingsUpdate(BaseModel):
-    min_cash_reserve: Optional[float] = None
-    currency:         Optional[str]   = None
+    min_cash_reserve:              Optional[float] = None
+    currency:                      Optional[str]   = None
+    # Phase 1: operational thresholds
+    safety_stock_days:             Optional[int]   = None
+    review_period_days:            Optional[int]   = None
+    khata_overdue_days:            Optional[int]   = None
+    expense_anomaly_threshold_pct: Optional[float] = None
+    high_risk_multiplier:          Optional[float] = None
+    medium_risk_multiplier:        Optional[float] = None
+    autonomous_mode:               Optional[bool]  = None
 
 
 # ── 8. Dashboard Summary Schema ───────────────────────────────────────────────
@@ -329,6 +346,11 @@ class RecommendationResponse(BaseModel):
     suggested_customer_message: Optional[str] = None
     status:                    str
     modified_message:          Optional[str] = None
+    # Phase 1: entity context for traceability
+    module:            Optional[str] = None
+    entity_type:       Optional[str] = None
+    entity_id:         Optional[str] = None
+    purchase_order_id: Optional[int] = None
 
     class Config:
         from_attributes = True
@@ -408,3 +430,158 @@ class ForecastActResponse(BaseModel):
     current_stock:      Optional[float] = None
     message:            str
 
+
+# ── 12. Supplier Schemas (Phase 1) ────────────────────────────────────────────
+
+class SupplierCreate(BaseModel):
+    name:         str
+    contact_name: Optional[str] = None
+    phone:        Optional[str] = None
+    email:        Optional[str] = None
+    address:      Optional[str] = None
+    category:     Optional[str] = None
+    is_active:    bool = True
+
+
+class SupplierUpdate(BaseModel):
+    name:         Optional[str]  = None
+    contact_name: Optional[str]  = None
+    phone:        Optional[str]  = None
+    email:        Optional[str]  = None
+    address:      Optional[str]  = None
+    category:     Optional[str]  = None
+    is_active:    Optional[bool] = None
+
+
+class SupplierResponse(BaseModel):
+    id:           int
+    name:         str
+    contact_name: Optional[str] = None
+    phone:        Optional[str] = None
+    email:        Optional[str] = None
+    address:      Optional[str] = None
+    category:     Optional[str] = None
+    is_active:    bool
+    created_at:   datetime
+
+    class Config:
+        from_attributes = True
+
+
+# ── 13. Purchase Order Schemas (Phase 1) ──────────────────────────────────────
+
+class PurchaseOrderItemCreate(BaseModel):
+    product_id: str
+    quantity:   float
+    unit_cost:  float = 0.0
+
+
+class PurchaseOrderItemResponse(BaseModel):
+    id:                int
+    purchase_order_id: int
+    product_id:        str
+    quantity:          float
+    unit_cost:         float
+    total_cost:        float
+    product_name:      Optional[str] = None
+    product_sku:       Optional[str] = None
+
+    class Config:
+        from_attributes = True
+
+
+class PurchaseOrderCreate(BaseModel):
+    supplier_id: Optional[int] = None
+    priority:    str           = "medium"
+    reason:      Optional[str] = None
+    notes:       Optional[str] = None
+    items:       List[PurchaseOrderItemCreate]
+
+
+class PurchaseOrderStatusUpdate(BaseModel):
+    """Used in PATCH /api/purchase-orders/{id} for status transitions."""
+    status: str = Field(description="New status: PENDING_APPROVAL | APPROVED | REJECTED | ORDERED | RECEIVED | CANCELLED")
+    notes:  Optional[str] = None
+
+
+class PurchaseOrderResponse(BaseModel):
+    id:            int
+    po_number:     str
+    supplier_id:   Optional[int] = None
+    supplier_name: Optional[str] = None
+    status:        str
+    total_amount:  float
+    priority:      str
+    reason:        Optional[str] = None
+    notes:         Optional[str] = None
+    created_at:    datetime
+    approved_at:   Optional[datetime] = None
+    ordered_at:    Optional[datetime] = None
+    received_at:   Optional[datetime] = None
+    items:         List[PurchaseOrderItemResponse] = []
+
+    class Config:
+        from_attributes = True
+
+
+# ── 14. Inventory Event Schemas (Phase 1) ─────────────────────────────────────
+
+class InventoryEventResponse(BaseModel):
+    id:              int
+    product_id:      str
+    event_type:      str
+    quantity_before: float
+    quantity_change: float
+    quantity_after:  float
+    reference_type:  Optional[str] = None
+    reference_id:    Optional[str] = None
+    notes:           Optional[str] = None
+    created_at:      datetime
+
+    class Config:
+        from_attributes = True
+
+
+# ── 15. Agent Run Schemas (Phase 1) ───────────────────────────────────────────
+
+class AgentRunResponse(BaseModel):
+    id:           int
+    agent_name:   str
+    started_at:   datetime
+    completed_at: Optional[datetime] = None
+    status:       str
+    trigger:      Optional[str] = None
+    entity_type:  Optional[str] = None
+    entity_id:    Optional[str] = None
+    output_data:  Optional[Dict[str, Any]] = None
+    error:        Optional[str] = None
+
+    class Config:
+        from_attributes = True
+
+
+# ── 16. Audit Log Schemas (Phase 1) ───────────────────────────────────────────
+
+class AuditLogResponse(BaseModel):
+    id:         int
+    timestamp:  datetime
+    actor_type: str
+    actor_id:   Optional[str] = None
+    action:     str
+    entity:     Optional[str] = None
+    entity_id:  Optional[str] = None
+    old_value:  Optional[Dict[str, Any]] = None
+    new_value:  Optional[Dict[str, Any]] = None
+    reason:     Optional[str] = None
+
+    class Config:
+        from_attributes = True
+
+
+# ── 17. Automation Status Schema (Phase 1) ────────────────────────────────────
+
+class AutomationStatusResponse(BaseModel):
+    autonomous_mode:       bool
+    pending_approvals:     int
+    agent_runs_today:      int
+    recommendations_today: int

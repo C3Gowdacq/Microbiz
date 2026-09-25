@@ -5,6 +5,8 @@ import {
   modifyRecommendation,
   rejectRecommendation,
   getAnalytics,
+  getProducts,
+  getCustomers,
   RecommendationRecord,
   AnalyticsSummary,
 } from '../api';
@@ -14,7 +16,9 @@ type TabStatus = 'ALL' | 'pending' | 'approved' | 'modified' | 'rejected';
 export const RecommendationsPage: React.FC = () => {
   const [recommendations, setRecommendations] = useState<RecommendationRecord[]>([]);
   const [analytics, setAnalytics] = useState<AnalyticsSummary | null>(null);
+  const [nameMap, setNameMap] = useState<Record<string, string>>({});
   const [currentTab, setCurrentTab] = useState<TabStatus>('ALL');
+  const [priorityFilter, setPriorityFilter] = useState<'ALL' | 'high' | 'medium' | 'low'>('ALL');
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -27,10 +31,20 @@ export const RecommendationsPage: React.FC = () => {
     try {
       setLoading(true);
       setError(null);
-      const [recs, stats] = await Promise.all([
+      const [recs, stats, prods, custs] = await Promise.all([
         getRecommendations(currentTab === 'ALL' ? undefined : currentTab),
         getAnalytics(),
+        getProducts().catch(() => []),
+        getCustomers().catch(() => []),
       ]);
+      const map: Record<string, string> = {};
+      if (Array.isArray(prods)) {
+        prods.forEach((p: any) => { map[p.id] = p.name; });
+      }
+      if (Array.isArray(custs)) {
+        custs.forEach((c: any) => { map[c.id] = c.name; });
+      }
+      setNameMap(map);
       setRecommendations(recs);
       setAnalytics(stats);
     } catch (err: any) {
@@ -40,9 +54,25 @@ export const RecommendationsPage: React.FC = () => {
     }
   };
 
+  const resolveNames = (text: string | null | undefined): string => {
+    if (!text) return '';
+    let res = text.replace(/EUR/g, '₹');
+    Object.entries(nameMap).forEach(([id, name]) => {
+      if (id && name) {
+        res = res.split(id).join(name);
+      }
+    });
+    return res;
+  };
+
   useEffect(() => {
     loadData();
   }, [currentTab]);
+
+  const filteredRecs = recommendations.filter((r) => {
+    if (priorityFilter === 'ALL') return true;
+    return r.priority.toLowerCase() === priorityFilter.toLowerCase();
+  });
 
   const handleApprove = async (id: number) => {
     try {
@@ -87,6 +117,72 @@ export const RecommendationsPage: React.FC = () => {
     } finally {
       setActionLoading(null);
     }
+  };
+
+  const renderStructuredReason = (reason: string) => {
+    const invRegex = /Inventory alert\s*\(([^)]+)\):\s*'([^']+)'\s*stock is\s*([\d.]+)\s*\(coverage:\s*([\d.]+)\s*days,\s*ROP:\s*([\d.]+)\)\.\s*Recommended reorder quantity:\s*([\d.]+)\s*units\s*\(estimated cost:\s*([^)]+)\)/i;
+    const match = reason.match(invRegex);
+
+    if (match) {
+      const [, alertLevel, prodName, stock, coverage, rop, reorderQty, estCost] = match;
+      const isCritical = alertLevel.toUpperCase() === 'CRITICAL';
+
+      return (
+        <div style={{ marginTop: '12px' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '14px', flexWrap: 'wrap' }}>
+            <span style={{ fontSize: '1.3rem' }}>📦</span>
+            <span style={{ fontSize: '1.15rem', fontWeight: 800, color: '#0f172a' }}>{prodName}</span>
+            <span className={`badge ${isCritical ? 'badge-critical' : 'badge-high'}`} style={{ fontSize: '0.75rem' }}>
+              {alertLevel.toUpperCase()} DEFICIT
+            </span>
+          </div>
+
+          <div className="rec-metrics-grid">
+            <div className="rec-metric-card" style={{ borderLeft: `4px solid ${isCritical ? '#e11d48' : '#f97316'}` }}>
+              <span className="rec-metric-label">On-Hand Stock</span>
+              <span className="rec-metric-val" style={{ color: isCritical ? '#e11d48' : '#c2410c' }}>
+                {Number(stock).toFixed(1)} units
+              </span>
+              <span className="rec-metric-sub">Reorder Point: {rop} units</span>
+            </div>
+
+            <div className="rec-metric-card">
+              <span className="rec-metric-label">Supply Coverage</span>
+              <span className="rec-metric-val" style={{ color: Number(coverage) < 2 ? '#e11d48' : '#0f172a' }}>
+                {coverage} days
+              </span>
+              <span className="rec-metric-sub">Until stock depletion</span>
+            </div>
+
+            <div className="rec-metric-card" style={{ borderLeft: '4px solid #2563eb' }}>
+              <span className="rec-metric-label">Recommended Order</span>
+              <span className="rec-metric-val" style={{ color: '#2563eb' }}>
+                +{Math.round(Number(reorderQty))} units
+              </span>
+              <span className="rec-metric-sub">Exact: {Number(reorderQty).toFixed(1)} units</span>
+            </div>
+
+            <div className="rec-metric-card" style={{ borderLeft: '4px solid #059669' }}>
+              <span className="rec-metric-label">Estimated Procurement Cost</span>
+              <span className="rec-metric-val" style={{ color: '#059669' }}>
+                {estCost}
+              </span>
+              <span className="rec-metric-sub">Wholesale trade estimate</span>
+            </div>
+          </div>
+
+          <div className="rec-reason-box">
+            <strong>Operational Intelligence:</strong> Live stock for <strong>{prodName}</strong> has breached safety levels ({Number(stock).toFixed(1)} vs ROP of {rop}), leaving approximately <strong>{coverage} days</strong> of customer demand before stockout. Replenishment recommends placing an order for <strong>{Math.round(Number(reorderQty))} units</strong> ({estCost}).
+          </div>
+        </div>
+      );
+    }
+
+    return (
+      <div className="rec-reason-box">
+        <strong>Action Context:</strong> {reason}
+      </div>
+    );
   };
 
   return (
@@ -177,47 +273,74 @@ export const RecommendationsPage: React.FC = () => {
         </button>
       </div>
 
+      {/* Priority Secondary Filter Pills */}
+      <div style={{ display: 'flex', gap: 8, marginBottom: 20, alignItems: 'center', flexWrap: 'wrap' }}>
+        <span style={{ fontSize: '0.85rem', fontWeight: 600, color: 'var(--text-muted)' }}>Priority:</span>
+        {(['ALL', 'high', 'medium', 'low'] as const).map((p) => (
+          <button
+            key={p}
+            className={`btn btn-sm ${priorityFilter === p ? 'btn-primary' : 'btn-secondary'}`}
+            onClick={() => setPriorityFilter(p)}
+            style={{ textTransform: 'capitalize', padding: '4px 12px', fontSize: '0.8rem' }}
+          >
+            {p === 'ALL' ? 'All Priorities' : `${p} Priority`}
+          </button>
+        ))}
+        <span style={{ marginLeft: 'auto', fontSize: '0.85rem', color: 'var(--text-muted)' }}>
+          Showing {filteredRecs.length} recommendations
+        </span>
+      </div>
+
       {/* Recommendations Feed */}
       {loading ? (
         <div style={{ textAlign: 'center', padding: 48 }}>
           <span className="spinner"></span> Loading recommendations...
         </div>
-      ) : recommendations.length === 0 ? (
+      ) : filteredRecs.length === 0 ? (
         <div className="empty-state">
           <div className="empty-state-icon">🎉</div>
-          <h3>No recommendations in this tab!</h3>
+          <h3>No recommendations in this view!</h3>
           <p>Targeted agent scans or full business health checks will queue actions here.</p>
         </div>
       ) : (
         <div>
-          {recommendations.map((rec) => {
+          {filteredRecs.map((rec) => {
             const isPending = rec.status === 'pending';
             const isModifying = modifyingId === rec.id;
+            const isRestock = rec.primary_action.toLowerCase().includes('replenishment') || rec.primary_action.toLowerCase().includes('stock') || rec.entity_type === 'product';
+            const priorityLower = rec.priority.toLowerCase();
+            const validSecondary = (rec.secondary_recommendations || []).filter(
+              (sec) => sec.reason && sec.reason.trim().length > 0
+            );
 
             return (
               <div
                 key={rec.id}
                 className={`rec-card ${
-                  rec.priority === 'high'
+                  priorityLower === 'critical'
+                    ? 'critical-priority'
+                    : priorityLower === 'high'
                     ? 'high-priority'
-                    : rec.priority === 'medium'
+                    : priorityLower === 'medium'
                     ? 'medium-priority'
                     : 'low-priority'
                 }`}
               >
                 {/* Card Meta Header */}
                 <div className="rec-meta">
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
                     <span
                       className={`badge ${
-                        rec.priority === 'high'
+                        priorityLower === 'critical'
+                          ? 'badge-critical'
+                          : priorityLower === 'high'
                           ? 'badge-high'
-                          : rec.priority === 'medium'
+                          : priorityLower === 'medium'
                           ? 'badge-medium'
                           : 'badge-low'
                       }`}
                     >
-                      {rec.priority} Priority
+                      {rec.priority.toUpperCase()} PRIORITY
                     </span>
 
                     <span
@@ -234,23 +357,47 @@ export const RecommendationsPage: React.FC = () => {
                       {rec.status.toUpperCase()}
                     </span>
 
+                    {rec.module && (
+                      <span className="badge" style={{ background: '#f5f3ff', color: '#6d28d9', border: '1px solid #ddd6fe' }}>
+                        🏷️ {rec.module.toUpperCase()}
+                      </span>
+                    )}
+
                     <span style={{ fontFamily: 'JetBrains Mono', color: 'var(--text-muted)', fontSize: '0.85rem' }}>
                       Ref #{rec.id}
                     </span>
                   </div>
 
-                  <span style={{ color: 'var(--text-muted)', fontSize: '0.85rem' }}>
+                  <span style={{ color: 'var(--text-muted)', fontSize: '0.85rem', fontWeight: 500 }}>
                     {new Date(rec.created_at).toLocaleString()}
                   </span>
                 </div>
 
                 {/* Primary Action Title */}
-                <div className="rec-action-title" style={{ marginBottom: 8 }}>
-                  ⚡ {rec.primary_action.replace(/_/g, ' ')}
+                <div className="rec-action-title">
+                  <span>⚡</span>
+                  <span style={{ textTransform: 'capitalize' }}>
+                    {rec.primary_action.replace(/_/g, ' ')}
+                  </span>
                 </div>
 
-                {/* Business Reason */}
-                <p className="rec-reason-text">{rec.reason}</p>
+                {/* Restock PO linkage notice */}
+                {isRestock && (
+                  <div className="rec-po-banner">
+                    <span style={{ fontSize: '1.3rem' }}>📦</span>
+                    <div>
+                      <strong style={{ display: 'block', color: '#065f46', marginBottom: '2px' }}>
+                        Autonomous Purchase Order Pipeline Ready
+                      </strong>
+                      <span style={{ color: '#047857' }}>
+                        Approving this recommendation creates and authorizes an immediate Purchase Order for supplier delivery.
+                      </span>
+                    </div>
+                  </div>
+                )}
+
+                {/* Structured Business Reason Display */}
+                {renderStructuredReason(resolveNames(rec.reason))}
 
                 {/* LLM Explanation Section */}
                 {(rec.llm_summary || rec.llm_reasoning) && (
@@ -258,14 +405,14 @@ export const RecommendationsPage: React.FC = () => {
                     <div className="rec-llm-title">🤖 LLM Strategic Analysis & Reasoning</div>
                     {rec.llm_summary && (
                       <p className="rec-llm-body" style={{ fontWeight: 600, marginBottom: 6 }}>
-                        {rec.llm_summary}
+                        {resolveNames(rec.llm_summary)}
                       </p>
                     )}
-                    {rec.llm_reasoning && <p className="rec-llm-body">{rec.llm_reasoning}</p>}
+                    {rec.llm_reasoning && <p className="rec-llm-body">{resolveNames(rec.llm_reasoning)}</p>}
 
                     {rec.suggested_customer_message && (
                       <div className="rec-customer-msg">
-                        <strong>Draft Communication:</strong> "{rec.suggested_customer_message}"
+                        <strong>Draft Communication:</strong> "{resolveNames(rec.suggested_customer_message)}"
                       </div>
                     )}
                   </div>
@@ -273,25 +420,25 @@ export const RecommendationsPage: React.FC = () => {
 
                 {/* Modified message display if already modified */}
                 {rec.status === 'modified' && rec.modified_message && (
-                  <div style={{ background: 'rgba(59, 130, 246, 0.15)', border: '1px solid #3b82f6', borderRadius: 8, padding: 12, marginBottom: 16 }}>
-                    <strong style={{ color: '#93c5fd', fontSize: '0.85rem' }}>Shopkeeper Modified Draft:</strong>
-                    <div style={{ color: '#eff6ff', marginTop: 4 }}>"{rec.modified_message}"</div>
+                  <div style={{ background: '#eff6ff', border: '1px solid #93c5fd', borderRadius: 8, padding: 12, marginBottom: 16 }}>
+                    <strong style={{ color: '#1e40af', fontSize: '0.85rem' }}>Shopkeeper Modified Draft:</strong>
+                    <div style={{ color: '#1e293b', marginTop: 4 }}>"{resolveNames(rec.modified_message)}"</div>
                   </div>
                 )}
 
-                {/* Secondary Actions List */}
-                {rec.secondary_recommendations && rec.secondary_recommendations.length > 0 && (
+                {/* Secondary Actions List (Only when there are actual actions with non-empty reasons) */}
+                {validSecondary.length > 0 && (
                   <div style={{ marginBottom: 16 }}>
                     <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)', textTransform: 'uppercase', marginBottom: 6, fontWeight: 700 }}>
                       Secondary Recommended Actions:
                     </div>
                     <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-                      {rec.secondary_recommendations.map((sec, idx) => (
+                      {validSecondary.map((sec, idx) => (
                         <div
                           key={idx}
                           style={{
-                            background: 'var(--bg-main)',
-                            border: '1px solid var(--border-color)',
+                            background: '#f8fafc',
+                            border: '1px solid #e2e8f0',
                             padding: '8px 12px',
                             borderRadius: 6,
                             fontSize: '0.85rem',
@@ -300,12 +447,14 @@ export const RecommendationsPage: React.FC = () => {
                             alignItems: 'center',
                           }}
                         >
-                          <span style={{ textTransform: 'capitalize', color: '#94a3b8' }}>
-                            • {sec.action.replace(/_/g, ' ')}: {sec.reason}
+                          <span style={{ textTransform: 'capitalize', color: '#475569' }}>
+                            • {sec.action.replace(/_/g, ' ')}: {resolveNames(sec.reason)}
                           </span>
-                          <span className="badge badge-medium" style={{ fontSize: '0.7rem' }}>
-                            {sec.priority}
-                          </span>
+                          {sec.priority && (
+                            <span className="badge badge-medium" style={{ fontSize: '0.7rem' }}>
+                              {sec.priority}
+                            </span>
+                          )}
                         </div>
                       ))}
                     </div>
@@ -316,7 +465,7 @@ export const RecommendationsPage: React.FC = () => {
                 {isPending && (
                   <div>
                     {!isModifying ? (
-                      <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap', marginTop: 16 }}>
+                      <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap', marginTop: 18 }}>
                         <button
                           className="btn btn-success"
                           onClick={() => handleApprove(rec.id)}
@@ -342,8 +491,8 @@ export const RecommendationsPage: React.FC = () => {
                         </button>
                       </div>
                     ) : (
-                      <div style={{ marginTop: 16, background: 'var(--bg-main)', padding: 16, borderRadius: 8, border: '1px solid var(--border-color)' }}>
-                        <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: 600, color: '#93c5fd', marginBottom: 8 }}>
+                      <div style={{ marginTop: 16, background: '#f8fafc', padding: 16, borderRadius: 8, border: '1px solid #e2e8f0' }}>
+                        <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: 600, color: '#1e40af', marginBottom: 8 }}>
                           Edit Action Note / Customer Communication Draft:
                         </label>
                         <textarea
@@ -353,15 +502,19 @@ export const RecommendationsPage: React.FC = () => {
                           onChange={(e) => setModifiedText(e.target.value)}
                           style={{ marginBottom: 12 }}
                         />
-                        <div style={{ display: 'flex', gap: 10 }}>
+                        <div style={{ display: 'flex', gap: 8 }}>
                           <button
                             className="btn btn-primary btn-sm"
                             onClick={() => handleConfirmModify(rec.id)}
                             disabled={actionLoading === rec.id}
                           >
-                            {actionLoading === rec.id ? <span className="spinner"></span> : 'Save & Approve Modified'}
+                            {actionLoading === rec.id ? <span className="spinner"></span> : 'Save Modifications'}
                           </button>
-                          <button className="btn btn-secondary btn-sm" onClick={() => setModifyingId(null)}>
+                          <button
+                            className="btn btn-secondary btn-sm"
+                            onClick={() => setModifyingId(null)}
+                            disabled={actionLoading === rec.id}
+                          >
                             Cancel
                           </button>
                         </div>

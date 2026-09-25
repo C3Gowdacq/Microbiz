@@ -114,7 +114,7 @@ def make_decision(
             secondary_recommendations.append({
                 "action": "send_payment_reminder",
                 "priority": priority_level,
-                "reason": f"Customer {cust_id} has outstanding overdue payment of EUR {outstanding:,.2f} for {days_overdue} days.",
+                "reason": f"Customer {cust_id} has outstanding overdue payment of ₹{outstanding:,.2f} for {days_overdue} days.",
             })
 
     # RULE 4: Expense category spike

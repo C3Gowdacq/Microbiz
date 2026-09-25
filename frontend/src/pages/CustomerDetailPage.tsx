@@ -95,6 +95,13 @@ export const CustomerDetailPage: React.FC = () => {
     }
   };
 
+  const fillSampleInvoice = () => {
+    setInvoiceAmount(14500);
+    const in15Days = new Date();
+    in15Days.setDate(in15Days.getDate() + 15);
+    setInvoiceDueDate(in15Days.toISOString().split('T')[0]);
+  };
+
   const handleOpenPayment = (inv: InvoiceSummaryItem) => {
     setSelectedInvoice(inv);
     setPaymentAmount(inv.invoice_amount - inv.amount_paid);
@@ -333,9 +340,20 @@ export const CustomerDetailPage: React.FC = () => {
           <div className="modal-content" onClick={(e) => e.stopPropagation()}>
             <div className="modal-header">
               <h2 className="modal-title">➕ Issue New Invoice</h2>
-              <button className="modal-close" onClick={() => setShowInvoiceModal(false)}>
-                ×
-              </button>
+              <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+                <button
+                  type="button"
+                  className="btn btn-sm btn-secondary"
+                  onClick={fillSampleInvoice}
+                  style={{ background: '#fef3c7', color: '#b45309', border: '1px solid #fde68a', fontWeight: 600 }}
+                  title="Auto-fill sample trade invoice amount & due date"
+                >
+                  ✨ Auto-Fill Sample Data
+                </button>
+                <button className="modal-close" onClick={() => setShowInvoiceModal(false)}>
+                  ×
+                </button>
+              </div>
             </div>
 
             <form onSubmit={handleCreateInvoice}>

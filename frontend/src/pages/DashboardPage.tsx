@@ -135,6 +135,28 @@ export const DashboardPage: React.FC = () => {
         </div>
       </div>
 
+      {/* Quick Access Action Bar */}
+      <div style={{ display: 'flex', gap: '12px', margin: '16px 0', flexWrap: 'wrap' }}>
+        <Link to="/purchase-orders" style={{ textDecoration: 'none' }}>
+          <button className="btn btn-secondary btn-sm" style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+            <span>📝</span>
+            <span>Purchase Orders & Receiving</span>
+          </button>
+        </Link>
+        <Link to="/automation" style={{ textDecoration: 'none' }}>
+          <button className="btn btn-secondary btn-sm" style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+            <span>⚡</span>
+            <span>Autonomous Engine & Agent Grid</span>
+          </button>
+        </Link>
+        <Link to="/settings" style={{ textDecoration: 'none' }}>
+          <button className="btn btn-secondary btn-sm" style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+            <span>⚙️</span>
+            <span>Store Configuration</span>
+          </button>
+        </Link>
+      </div>
+
       {/* Autonomous Health Check Hero */}
       <div className="hero-banner">
         <div className="hero-text">

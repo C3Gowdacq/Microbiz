@@ -9,6 +9,7 @@ import {
   Customer,
   Sale,
   SaleCreate,
+  InventoryRisk,
 } from '../api';
 
 export const SalesPage: React.FC = () => {
@@ -19,6 +20,7 @@ export const SalesPage: React.FC = () => {
   const [recording, setRecording] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
   const [successMsg, setSuccessMsg] = useState<string | null>(null);
+  const [lastRiskFeedback, setLastRiskFeedback] = useState<InventoryRisk | null>(null);
 
   const [formData, setFormData] = useState<SaleCreate>({
     product_id: '',
@@ -47,6 +49,14 @@ export const SalesPage: React.FC = () => {
           product_id: prods[0].id,
           unit_price: prods[0].selling_price,
         }));
+      }
+
+      // Automatically display latest post-sale risk feedback from recent transactions
+      if (salesList.length > 0) {
+        const recentWithRisk = salesList.find((s) => s.inventory_risk);
+        if (recentWithRisk?.inventory_risk) {
+          setLastRiskFeedback(recentWithRisk.inventory_risk);
+        }
       }
     } catch (err: any) {
       setError(err?.response?.data?.detail || err.message || 'Failed to load sales data');
@@ -86,7 +96,8 @@ export const SalesPage: React.FC = () => {
         date: formData.date || undefined,
       });
 
-      setSuccessMsg(`✅ Recorded Sale #${sale.id} for €${sale.total_amount.toFixed(2)} (Stock automatically decremented).`);
+      setSuccessMsg(`✅ Recorded Sale #${sale.id} for ₹${sale.total_amount.toLocaleString('en-IN', { minimumFractionDigits: 2 })} (Stock automatically decremented).`);
+      setLastRiskFeedback(sale.inventory_risk || null);
       setFormData((prev) => ({ ...prev, quantity: 1 }));
       await loadData();
     } catch (err: any) {
@@ -96,8 +107,29 @@ export const SalesPage: React.FC = () => {
     }
   };
 
+  const fillSampleSale = () => {
+    if (products.length === 0) return;
+    const sorted = [...products].sort((a, b) => a.current_stock - b.current_stock);
+    const target = sorted[0];
+    setFormData({
+      product_id: target.id,
+      customer_id: customers.length > 0 ? customers[0].id : '',
+      quantity: Math.min(2, Math.max(1, Math.floor(target.current_stock / 2) || 1)),
+      unit_price: target.selling_price,
+      date: new Date().toISOString().split('T')[0],
+    });
+  };
+
   const selectedProduct = products.find((p) => p.id === formData.product_id);
   const totalAmount = Number(formData.quantity || 0) * Number(formData.unit_price || 0);
+
+  // Projected stock calculations for live preview
+  const currentStock = selectedProduct ? selectedProduct.current_stock : 0;
+  const reorderPoint = selectedProduct ? selectedProduct.reorder_level : 15;
+  const leadTimeDays = selectedProduct?.lead_time_days || 3;
+  const dailyBurnEst = Math.max(0.5, reorderPoint / leadTimeDays);
+  const coverageDaysEst = (currentStock / dailyBurnEst).toFixed(1);
+  const projectedStockAfter = currentStock - Number(formData.quantity || 1);
 
   return (
     <div>
@@ -110,16 +142,197 @@ export const SalesPage: React.FC = () => {
 
       {error && <div className="error-banner">⚠️ {error}</div>}
       {successMsg && (
-        <div style={{ background: 'rgba(16, 185, 129, 0.15)', border: '1px solid #10b981', color: '#a7f3d0', padding: 14, borderRadius: 10, marginBottom: 20 }}>
+        <div style={{ background: 'rgba(16, 185, 129, 0.15)', border: '1px solid #10b981', color: '#065f46', padding: 14, borderRadius: 10, marginBottom: 16 }}>
           {successMsg}
+        </div>
+      )}
+
+      {/* Real-time Post-Sale Inventory Risk Feedback Card */}
+      {lastRiskFeedback && (
+        <div
+          className="card"
+          style={{
+            margin: '0 0 24px 0',
+            borderLeft: `6px solid ${
+              lastRiskFeedback.risk_level === 'CRITICAL'
+                ? '#e11d48'
+                : lastRiskFeedback.risk_level === 'HIGH'
+                ? '#f97316'
+                : lastRiskFeedback.risk_level === 'MEDIUM'
+                ? '#eab308'
+                : '#16a34a'
+            }`,
+            background: '#ffffff',
+            boxShadow: '0 4px 20px rgba(0,0,0,0.06)',
+            borderRadius: '16px',
+            padding: '20px 24px',
+          }}
+        >
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '16px' }}>
+            <div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '6px' }}>
+                <span style={{ fontSize: '1.4rem' }}>
+                  {lastRiskFeedback.risk_level === 'CRITICAL' ? '🚨' : lastRiskFeedback.risk_level === 'HIGH' ? '⚠️' : '📦'}
+                </span>
+                <strong style={{ fontSize: '1.15rem', color: '#0f172a' }}>
+                  Real-Time Post-Sale Risk Feedback: {lastRiskFeedback.product_name}
+                </strong>
+                <span
+                  className={`badge ${
+                    lastRiskFeedback.risk_level === 'CRITICAL'
+                      ? 'badge-critical'
+                      : lastRiskFeedback.risk_level === 'HIGH'
+                      ? 'badge-high'
+                      : lastRiskFeedback.risk_level === 'MEDIUM'
+                      ? 'badge-medium'
+                      : 'badge-low'
+                  }`}
+                  style={{ fontSize: '0.78rem' }}
+                >
+                  {lastRiskFeedback.risk_level} RISK
+                </span>
+              </div>
+              <div style={{ display: 'flex', gap: '20px', marginTop: '10px', fontSize: '0.88rem', color: '#475569', flexWrap: 'wrap' }}>
+                <span>
+                  <strong>Remaining Stock:</strong>{' '}
+                  <span style={{ color: lastRiskFeedback.current_stock < lastRiskFeedback.reorder_point ? '#e11d48' : '#0f172a', fontWeight: 700 }}>
+                    {lastRiskFeedback.current_stock} units
+                  </span>
+                </span>
+                <span>
+                  <strong>Coverage Days:</strong>{' '}
+                  <span style={{ color: Number(lastRiskFeedback.coverage_days) < 2 ? '#e11d48' : '#0f172a', fontWeight: 700 }}>
+                    {lastRiskFeedback.coverage_days !== null && lastRiskFeedback.coverage_days !== undefined
+                      ? `${Number(lastRiskFeedback.coverage_days).toFixed(1)} days`
+                      : 'N/A'}
+                  </span>
+                </span>
+                <span>
+                  <strong>Reorder Point (ROP):</strong> <span style={{ fontWeight: 700 }}>{lastRiskFeedback.reorder_point} units</span>
+                </span>
+                <span>
+                  <strong>Supplier Lead Time:</strong> <span style={{ fontWeight: 700 }}>{lastRiskFeedback.lead_time_days} days</span>
+                </span>
+              </div>
+            </div>
+
+            {lastRiskFeedback.reorder_needed ? (
+              <div style={{ textAlign: 'right', background: '#fff1f2', border: '1px solid #fecdd3', borderRadius: '12px', padding: '12px 18px' }}>
+                <div style={{ fontSize: '0.75rem', textTransform: 'uppercase', color: '#9f1239', fontWeight: 700 }}>
+                  Recommended Order Quantity
+                </div>
+                <div style={{ fontSize: '1.25rem', color: '#e11d48', fontWeight: 800 }}>
+                  +{lastRiskFeedback.recommended_order_qty} units
+                </div>
+                <Link to="/recommendations" style={{ textDecoration: 'none' }}>
+                  <button className="btn btn-sm btn-primary" style={{ marginTop: '6px' }}>
+                    View Approvals →
+                  </button>
+                </Link>
+              </div>
+            ) : (
+              <div style={{ textAlign: 'right', background: '#f0fdf4', border: '1px solid #bbf7d0', borderRadius: '12px', padding: '12px 18px' }}>
+                <div style={{ fontSize: '0.75rem', textTransform: 'uppercase', color: '#166534', fontWeight: 700 }}>
+                  Stock Status
+                </div>
+                <div style={{ fontSize: '1.1rem', color: '#16a34a', fontWeight: 800 }}>
+                  ✓ Safe Reserve
+                </div>
+              </div>
+            )}
+          </div>
         </div>
       )}
 
       {/* Sale Entry Card */}
       <div className="card">
-        <h2 className="card-title" style={{ marginBottom: 18 }}>🛒 Record POS Sale</h2>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 18, flexWrap: 'wrap', gap: 10 }}>
+          <h2 className="card-title" style={{ margin: 0 }}>🛒 Record POS Sale</h2>
+          <button
+            type="button"
+            className="btn btn-sm btn-secondary"
+            onClick={fillSampleSale}
+            style={{ background: '#fef3c7', color: '#b45309', border: '1px solid #fde68a', fontWeight: 600 }}
+            title="Auto-fill sale for low-stock item to demonstrate instant risk computation"
+          >
+            ✨ Auto-Fill Sample Sale
+          </button>
+        </div>
 
         <form onSubmit={handleSubmit}>
+          {/* Live Pre-Sale Stock & Risk Indicator */}
+          {selectedProduct && (
+            <div
+              style={{
+                marginBottom: '20px',
+                background: '#f8fafc',
+                border: '1.5px solid #e2e8f0',
+                borderRadius: '12px',
+                padding: '14px 18px',
+                display: 'flex',
+                justifyContent: 'space-between',
+                alignItems: 'center',
+                flexWrap: 'wrap',
+                gap: '14px',
+              }}
+            >
+              <div style={{ display: 'flex', gap: '20px', alignItems: 'center', flexWrap: 'wrap' }}>
+                <div>
+                  <span style={{ fontSize: '0.72rem', textTransform: 'uppercase', color: '#64748b', fontWeight: 700, display: 'block' }}>
+                    Current On-Hand
+                  </span>
+                  <strong style={{ fontSize: '1.1rem', color: currentStock < reorderPoint ? '#e11d48' : '#059669' }}>
+                    {currentStock} units
+                  </strong>
+                </div>
+                <div>
+                  <span style={{ fontSize: '0.72rem', textTransform: 'uppercase', color: '#64748b', fontWeight: 700, display: 'block' }}>
+                    Reorder Point (ROP)
+                  </span>
+                  <strong style={{ fontSize: '1.1rem', color: '#0f172a' }}>
+                    {reorderPoint} units
+                  </strong>
+                </div>
+                <div>
+                  <span style={{ fontSize: '0.72rem', textTransform: 'uppercase', color: '#64748b', fontWeight: 700, display: 'block' }}>
+                    Est. Coverage
+                  </span>
+                  <strong style={{ fontSize: '1.1rem', color: Number(coverageDaysEst) < 2 ? '#e11d48' : '#0f172a' }}>
+                    {coverageDaysEst} days
+                  </strong>
+                </div>
+                <div>
+                  <span style={{ fontSize: '0.72rem', textTransform: 'uppercase', color: '#64748b', fontWeight: 700, display: 'block' }}>
+                    Projected After Sale
+                  </span>
+                  <strong style={{ fontSize: '1.1rem', color: projectedStockAfter < reorderPoint ? '#e11d48' : '#059669' }}>
+                    {projectedStockAfter.toFixed(1)} units
+                  </strong>
+                </div>
+              </div>
+
+              <div>
+                {projectedStockAfter <= 0 ? (
+                  <span className="badge badge-critical" style={{ fontSize: '0.8rem' }}>
+                    🚨 CRITICAL (STOCKOUT)
+                  </span>
+                ) : projectedStockAfter < (selectedProduct.safety_stock || 5) ? (
+                  <span className="badge badge-high" style={{ fontSize: '0.8rem' }}>
+                    ⚠️ HIGH STOCK RISK
+                  </span>
+                ) : projectedStockAfter < reorderPoint ? (
+                  <span className="badge badge-medium" style={{ fontSize: '0.8rem' }}>
+                    ⚠️ BELOW REORDER POINT
+                  </span>
+                ) : (
+                  <span className="badge badge-low" style={{ fontSize: '0.8rem' }}>
+                    ✓ SAFE RESERVE
+                  </span>
+                )}
+              </div>
+            </div>
+          )}
+
           <div className="form-grid">
             <div className="form-group">
               <label>Select Product *</label>

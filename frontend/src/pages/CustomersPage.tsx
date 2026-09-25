@@ -75,6 +75,15 @@ export const CustomersPage: React.FC = () => {
     }
   };
 
+  const fillSampleCustomer = () => {
+    const randNum = Math.floor(100 + Math.random() * 900);
+    setFormData({
+      name: `Sharma Kirana Store (${randNum})`,
+      email: `sharma.kirana${randNum}@example.com`,
+      phone: `98765${randNum}12`,
+    });
+  };
+
   const filtered = customers.filter(
     (c) =>
       c.name.toLowerCase().includes(search.toLowerCase()) ||
@@ -189,9 +198,20 @@ export const CustomersPage: React.FC = () => {
           <div className="modal-content" onClick={(e) => e.stopPropagation()}>
             <div className="modal-header">
               <h2 className="modal-title">➕ Add New Customer</h2>
-              <button className="modal-close" onClick={() => setShowAddModal(false)}>
-                ×
-              </button>
+              <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+                <button
+                  type="button"
+                  className="btn btn-sm btn-secondary"
+                  onClick={fillSampleCustomer}
+                  style={{ background: '#fef3c7', color: '#b45309', border: '1px solid #fde68a', fontWeight: 600 }}
+                  title="Auto-fill sample customer profile"
+                >
+                  ✨ Auto-Fill Sample Data
+                </button>
+                <button className="modal-close" onClick={() => setShowAddModal(false)}>
+                  ×
+                </button>
+              </div>
             </div>
 
             <form onSubmit={handleCreate}>

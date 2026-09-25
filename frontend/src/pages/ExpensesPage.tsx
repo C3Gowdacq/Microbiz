@@ -80,6 +80,21 @@ export const ExpensesPage: React.FC = () => {
     }
   };
 
+  const fillSampleExpense = () => {
+    const samples = [
+      { category: 'Utilities', amount: 8450, description: 'Commercial Electricity & Water Board bill' },
+      { category: 'Employee Wages', amount: 24000, description: 'Store assistant & night security helper wages' },
+      { category: 'Equipment & Maintenance', amount: 4200, description: 'Deep refrigerator compressor gas refill' },
+    ];
+    const picked = samples[Math.floor(Math.random() * samples.length)];
+    setFormData({
+      category: picked.category,
+      current_period_amount: picked.amount,
+      description: picked.description,
+      date: new Date().toISOString().split('T')[0],
+    });
+  };
+
   const handleCheckTrend = async (category: string) => {
     try {
       setCheckingCategory(category);
@@ -172,7 +187,18 @@ export const ExpensesPage: React.FC = () => {
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: 24, marginBottom: 28 }}>
         {/* Log Expense Card */}
         <div className="card">
-          <h2 className="card-title" style={{ marginBottom: 16 }}>➕ Log Expenditure</h2>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16, flexWrap: 'wrap', gap: 10 }}>
+            <h2 className="card-title" style={{ margin: 0 }}>➕ Log Expenditure</h2>
+            <button
+              type="button"
+              className="btn btn-sm btn-secondary"
+              onClick={fillSampleExpense}
+              style={{ background: '#fef3c7', color: '#b45309', border: '1px solid #fde68a', fontWeight: 600 }}
+              title="Auto-fill with typical MSME operating expenditure"
+            >
+              ✨ Auto-Fill Sample Data
+            </button>
+          </div>
           <form onSubmit={handleCreateExpense}>
             <div className="form-group" style={{ marginBottom: 14 }}>
               <label>Category *</label>

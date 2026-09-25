@@ -93,7 +93,8 @@ def build_inventory_input(product_id: str, db: Session, forecast_horizon_days: i
         forecast_demand = max(forecast_demand, product.reorder_level)
 
     return {
-        "product_id": product_id,
+        "product_id": product.name,
+        "product_uuid": product_id,
         "current_stock": product.current_stock,
         "forecast_demand": round(forecast_demand, 2),
         "reorder_level": product.reorder_level,
@@ -186,8 +187,11 @@ def build_credit_input(customer_id: str, db: Session) -> Optional[Dict[str, Any]
 
     # Pick the oldest (most urgent) invoice
     inv = invoices[0]
+    customer = db.query(Customer).filter(Customer.id == customer_id).first()
+    customer_name = customer.name if customer else customer_id
     return {
-        "customer_id": customer_id,
+        "customer_id": customer_name,
+        "customer_uuid": customer_id,
         "invoice_amount": inv.invoice_amount,
         "amount_paid": inv.amount_paid,
         "due_date": inv.due_date,
@@ -291,7 +295,8 @@ def build_profitability_input(
     )
 
     return {
-        "product_id": product_id,
+        "product_id": product.name,
+        "product_uuid": product_id,
         "selling_price": product.selling_price,
         "cost_price": product.cost_price,
         "quantity_sold": qty_sold,

@@ -107,3 +107,65 @@ def get_customer(customer_id: str, db: Session = Depends(get_db)):
     if not customer:
         raise HTTPException(status_code=404, detail=f"Customer '{customer_id}' not found")
     return customer
+
+
+@router.post("/{customer_id}/send-reminder")
+def send_customer_reminder(
+    customer_id: str,
+    channel: str = "sms",
+    custom_message: Optional[str] = None,
+    db: Session = Depends(get_db),
+):
+    """
+    Send an SMS or WhatsApp payment reminder directly to a customer via Twilio.
+    """
+    from datetime import datetime, timezone
+    from backend.app.models import AuditLog
+    from backend.app.services.twilio_service import send_sms_or_whatsapp
+
+    customer = db.query(Customer).filter(Customer.id == customer_id).first()
+    if not customer:
+        raise HTTPException(status_code=404, detail=f"Customer '{customer_id}' not found")
+
+    invoices = db.query(Invoice).filter(
+        Invoice.customer_id == customer_id,
+        Invoice.status.in_(["unpaid", "partially_paid"]),
+    ).all()
+
+    outstanding = sum(inv.invoice_amount - inv.amount_paid for inv in invoices)
+
+    if custom_message:
+        message_body = custom_message
+    else:
+        message_body = (
+            f"Dear {customer.name}, this is a gentle reminder from MicroBiz Store regarding your "
+            f"outstanding balance of INR {outstanding:,.2f}. Kindly arrange the payment at your convenience. Thank you!"
+        )
+
+    is_wa = (channel.lower() == "whatsapp")
+    dispatch_res = send_sms_or_whatsapp(
+        to_phone=customer.phone,
+        message_body=message_body,
+        is_whatsapp=is_wa,
+    )
+
+    now = datetime.now(timezone.utc)
+    db.add(AuditLog(
+        actor_type="MERCHANT",
+        action="CUSTOMER_REMINDER_SENT",
+        entity="customers",
+        entity_id=customer.id,
+        reason=f"Dispatched {channel.upper()} reminder: {dispatch_res.get('status')} to {dispatch_res.get('to')}",
+        timestamp=now,
+    ))
+    db.commit()
+
+    return {
+        "customer_id": customer.id,
+        "customer_name": customer.name,
+        "phone": customer.phone,
+        "channel": channel,
+        "message": message_body,
+        "twilio_result": dispatch_res,
+    }
+

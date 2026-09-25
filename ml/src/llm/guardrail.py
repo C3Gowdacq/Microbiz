@@ -25,8 +25,8 @@ def extract_numbers_from_text(text: str) -> List[float]:
         return []
 
     # Pattern matches integers, decimals, negatives, comma-separated numbers (e.g. 12,000.00)
-    # Remove currency symbols (EUR, €, $) and commas before matching
-    clean_text = text.replace("EUR", "").replace("€", "").replace("$", "").replace(",", "")
+    # Remove currency symbols (EUR, €, $, ₹, INR) and commas before matching
+    clean_text = text.replace("EUR", "").replace("€", "").replace("$", "").replace("₹", "").replace("INR", "").replace(",", "")
 
     # Match float numbers or integers
     pattern = r"[-+]?\d*\.\d+|\d+"

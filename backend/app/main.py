@@ -8,7 +8,7 @@ Expenses, Dashboard, and Business Settings.
 
 import os
 import sys
-from datetime import date
+from datetime import date, datetime, timezone
 from typing import Dict, Any, List, Optional
 
 # Ensure ml/src/ is importable
@@ -20,7 +20,7 @@ from sqlalchemy.orm import Session
 from sqlalchemy import func
 
 from backend.app.database import engine, Base, get_db
-from backend.app.models import Recommendation, HumanAction
+from backend.app.models import Recommendation, HumanAction, PurchaseOrder, PurchaseOrderItem, AuditLog
 
 from backend.app.schemas import (
     SalesForecastRequest,
@@ -39,6 +39,7 @@ from backend.app.schemas import (
 from backend.app.routers import products, customers, sales, invoices, expenses, dashboard, settings as settings_router
 from backend.app.routers import agents as agents_router
 from backend.app.routers import forecasts as forecasts_router
+from backend.app.routers import suppliers, purchase_orders
 
 # Import agent data builder (real DB -> agent inputs)
 from backend.app.services.agent_data_builder import (
@@ -86,6 +87,9 @@ app.include_router(dashboard.router)
 app.include_router(settings_router.router)
 app.include_router(agents_router.router)     # targeted per-entity agent checks
 app.include_router(forecasts_router.router)  # dedicated sales forecasting router
+app.include_router(suppliers.router)
+app.include_router(purchase_orders.router)
+app.include_router(settings_router.automation_router)
 
 
 # ── Root ──────────────────────────────────────────────────────────────────────
@@ -318,15 +322,105 @@ def get_recommendation_by_id(id: int, db: Session = Depends(get_db)):
 
 @app.post("/api/recommendations/{id}/approve", response_model=RecommendationResponse)
 def approve_recommendation(id: int, db: Session = Depends(get_db)):
-    """Approve a pending recommendation."""
+    """Approve a pending recommendation and trigger downstream execution (e.g. PO creation/approval)."""
     rec = db.query(Recommendation).filter(Recommendation.id == id).first()
     if not rec:
         raise HTTPException(status_code=404, detail=f"Recommendation ID {id} not found")
     if rec.status != "pending":
         raise HTTPException(status_code=400, detail=f"Recommendation has already been acted upon (status: {rec.status})")
 
+    now = datetime.now(timezone.utc)
     rec.status = "approved"
-    db.add(HumanAction(recommendation_id=rec.id, action="approve", original_message=rec.suggested_customer_message))
+    db.add(HumanAction(recommendation_id=rec.id, action="approve", original_message=rec.suggested_customer_message, timestamp=now))
+
+    # Phase 6 & 11: If this is an inventory recommendation, link/create approved PO
+    if rec.module == "inventory":
+        if rec.purchase_order_id:
+            po = db.query(PurchaseOrder).filter(PurchaseOrder.id == rec.purchase_order_id).first()
+            if po and po.status in ("DRAFT", "PENDING_APPROVAL"):
+                po.status = "APPROVED"
+                po.approved_at = now
+        elif rec.secondary_recommendations:
+            for sec in (rec.secondary_recommendations or []):
+                if isinstance(sec, dict) and sec.get("action") in ("create_purchase_order", "reorder"):
+                    prod_id = sec.get("product_id") or rec.entity_id
+                    qty = float(sec.get("quantity") or 10.0)
+                    unit_cost = float(sec.get("unit_cost") or 0.0)
+                    from backend.app.routers.purchase_orders import _generate_po_number
+                    po = PurchaseOrder(
+                        po_number=_generate_po_number(db),
+                        status="APPROVED",
+                        priority=rec.priority or "medium",
+                        reason=f"Approved recommendation #{rec.id}: {rec.reason[:100] if rec.reason else 'Inventory Replenishment'}",
+                        total_amount=round(qty * unit_cost, 2),
+                        created_at=now,
+                        approved_at=now,
+                    )
+                    db.add(po)
+                    db.flush()
+                    po_item = PurchaseOrderItem(
+                        purchase_order_id=po.id,
+                        product_id=prod_id,
+                        quantity=qty,
+                        unit_cost=unit_cost,
+                        total_cost=round(qty * unit_cost, 2),
+                    )
+                    db.add(po_item)
+                    rec.purchase_order_id = po.id
+                    break
+
+    db.add(AuditLog(
+        actor_type="MERCHANT",
+        action="RECOMMENDATION_APPROVED",
+        entity="recommendations",
+        entity_id=str(rec.id),
+        reason=f"Approved recommendation #{rec.id} ({rec.primary_action})",
+        timestamp=now,
+    ))
+
+    # Phase 25: Twilio SMS / WhatsApp Notification Dispatch upon Merchant Approval
+    customer_msg = rec.modified_message or rec.suggested_customer_message
+    if customer_msg:
+        try:
+            from backend.app.services.twilio_service import send_sms_or_whatsapp
+            from backend.app.models import Customer
+            target_customer = None
+            if rec.entity_type == "customer" and rec.entity_id:
+                target_customer = db.query(Customer).filter(Customer.id == rec.entity_id).first()
+            if not target_customer and rec.secondary_recommendations:
+                for sec in (rec.secondary_recommendations or []):
+                    if isinstance(sec, dict) and sec.get("action") == "send_payment_reminder":
+                        reason_str = sec.get("reason", "")
+                        for cust in db.query(Customer).all():
+                            if cust.name in reason_str:
+                                target_customer = cust
+                                break
+                        if target_customer:
+                            break
+            if not target_customer:
+                target_customer = db.query(Customer).first()
+
+            target_phone = target_customer.phone if target_customer else ""
+            sms_res = send_sms_or_whatsapp(target_phone, customer_msg)
+
+            db.add(AuditLog(
+                actor_type="SYSTEM",
+                action="CUSTOMER_SMS_DISPATCHED" if sms_res.get("status") == "sent" else "CUSTOMER_SMS_SIMULATED",
+                entity="customers",
+                entity_id=target_customer.id if target_customer else "unknown",
+                reason=f"Twilio SMS ({sms_res.get('status')}): to {sms_res.get('to')}, body: {customer_msg[:120]}",
+                timestamp=now,
+            ))
+        except Exception as e:
+            db.add(AuditLog(
+                actor_type="SYSTEM",
+                action="CUSTOMER_SMS_FAILED",
+                entity="customers",
+                entity_id=str(rec.id),
+                reason=f"Twilio SMS error: {str(e)[:150]}",
+                timestamp=now,
+            ))
+
     db.commit()
     db.refresh(rec)
     return rec
@@ -341,9 +435,20 @@ def modify_recommendation(id: int, req: ModifyRecommendationRequest, db: Session
     if rec.status != "pending":
         raise HTTPException(status_code=400, detail=f"Recommendation has already been acted upon (status: {rec.status})")
 
+    now = datetime.now(timezone.utc)
     rec.status = "modified"
     rec.modified_message = req.modified_message
-    db.add(HumanAction(recommendation_id=rec.id, action="modify", original_message=rec.suggested_customer_message, modified_message=req.modified_message))
+    db.add(HumanAction(recommendation_id=rec.id, action="modify", original_message=rec.suggested_customer_message, modified_message=req.modified_message, timestamp=now))
+
+    db.add(AuditLog(
+        actor_type="MERCHANT",
+        action="RECOMMENDATION_MODIFIED",
+        entity="recommendations",
+        entity_id=str(rec.id),
+        reason=f"Modified recommendation #{rec.id}",
+        timestamp=now,
+    ))
+
     db.commit()
     db.refresh(rec)
     return rec
@@ -358,8 +463,24 @@ def reject_recommendation(id: int, db: Session = Depends(get_db)):
     if rec.status != "pending":
         raise HTTPException(status_code=400, detail=f"Recommendation has already been acted upon (status: {rec.status})")
 
+    now = datetime.now(timezone.utc)
     rec.status = "rejected"
-    db.add(HumanAction(recommendation_id=rec.id, action="reject", original_message=rec.suggested_customer_message))
+    db.add(HumanAction(recommendation_id=rec.id, action="reject", original_message=rec.suggested_customer_message, timestamp=now))
+
+    if rec.purchase_order_id:
+        po = db.query(PurchaseOrder).filter(PurchaseOrder.id == rec.purchase_order_id).first()
+        if po and po.status in ("DRAFT", "PENDING_APPROVAL", "APPROVED"):
+            po.status = "REJECTED"
+
+    db.add(AuditLog(
+        actor_type="MERCHANT",
+        action="RECOMMENDATION_REJECTED",
+        entity="recommendations",
+        entity_id=str(rec.id),
+        reason=f"Rejected recommendation #{rec.id}",
+        timestamp=now,
+    ))
+
     db.commit()
     db.refresh(rec)
     return rec

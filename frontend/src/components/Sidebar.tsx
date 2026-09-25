@@ -23,10 +23,10 @@ export const Sidebar: React.FC = () => {
   return (
     <aside className="sidebar">
       <div className="sidebar-brand">
-        <div className="brand-icon">µB</div>
+        <div className="brand-icon">M</div>
         <div>
-          <div className="brand-title">MicroBizAI</div>
-          <div className="brand-tag">Autonomous BI Engine</div>
+          <div className="brand-title">micro<span className="red-text">biz</span></div>
+          <div className="brand-tag">Retail Decision OS</div>
         </div>
       </div>
 
@@ -41,35 +41,49 @@ export const Sidebar: React.FC = () => {
         <NavLink to="/products" className={({ isActive }) => `nav-link ${isActive ? 'active' : ''}`}>
           <div className="nav-link-content">
             <span className="nav-icon">📦</span>
-            <span>Products & Stock</span>
+            <span>Grocery & Stock</span>
           </div>
         </NavLink>
 
         <NavLink to="/forecasting" className={({ isActive }) => `nav-link ${isActive ? 'active' : ''}`}>
           <div className="nav-link-content">
-            <span className="nav-icon">📈</span>
-            <span>Sales Forecasting</span>
+            <span className="nav-icon">🔮</span>
+            <span>Demand Forecasting</span>
           </div>
         </NavLink>
 
         <NavLink to="/sales" className={({ isActive }) => `nav-link ${isActive ? 'active' : ''}`}>
           <div className="nav-link-content">
             <span className="nav-icon">🛒</span>
-            <span>Sales Entry</span>
+            <span>Sales Entry (POS)</span>
+          </div>
+        </NavLink>
+
+        <NavLink to="/purchase-orders" className={({ isActive }) => `nav-link ${isActive ? 'active' : ''}`}>
+          <div className="nav-link-content">
+            <span className="nav-icon">📝</span>
+            <span>Purchase Orders</span>
+          </div>
+        </NavLink>
+
+        <NavLink to="/automation" className={({ isActive }) => `nav-link ${isActive ? 'active' : ''}`}>
+          <div className="nav-link-content">
+            <span className="nav-icon">⚡</span>
+            <span>Autonomous Engine</span>
           </div>
         </NavLink>
 
         <NavLink to="/customers" className={({ isActive }) => `nav-link ${isActive ? 'active' : ''}`}>
           <div className="nav-link-content">
             <span className="nav-icon">👥</span>
-            <span>Customers & Credit</span>
+            <span>Customer Khata</span>
           </div>
         </NavLink>
 
         <NavLink to="/expenses" className={({ isActive }) => `nav-link ${isActive ? 'active' : ''}`}>
           <div className="nav-link-content">
             <span className="nav-icon">💸</span>
-            <span>Expense Tracking</span>
+            <span>Expense Tracker</span>
           </div>
         </NavLink>
 
@@ -79,6 +93,13 @@ export const Sidebar: React.FC = () => {
             <span>AI Approvals</span>
           </div>
           {pendingCount > 0 && <span className="nav-badge">{pendingCount}</span>}
+        </NavLink>
+
+        <NavLink to="/settings" className={({ isActive }) => `nav-link ${isActive ? 'active' : ''}`}>
+          <div className="nav-link-content">
+            <span className="nav-icon">⚙️</span>
+            <span>Settings</span>
+          </div>
         </NavLink>
       </nav>
 

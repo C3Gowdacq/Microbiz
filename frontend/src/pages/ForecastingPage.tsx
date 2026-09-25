@@ -151,14 +151,16 @@ export const ForecastingPage: React.FC = () => {
 
       {error && <div className="error-banner">⚠️ {error}</div>}
       {successMsg && (
-        <div style={{ background: 'rgba(16, 185, 129, 0.15)', border: '1px solid #10b981', color: '#a7f3d0', padding: '14px 18px', borderRadius: 10, marginBottom: 20 }}>
+        <div className="success-banner">
           {successMsg}
         </div>
       )}
 
       {/* Control Panel: Product & Horizon Selector */}
-      <div className="card" style={{ background: 'linear-gradient(135deg, rgba(23, 32, 51, 0.95), rgba(15, 23, 42, 0.9))' }}>
-        <h2 className="card-title" style={{ marginBottom: 16 }}>🎯 Run On-Demand Product Forecast</h2>
+      <div className="forecast-hero-card">
+        <h2 style={{ fontSize: '1.35rem', fontWeight: 800, color: 'var(--text-primary)', marginBottom: 18 }}>
+          🎯 Run On-Demand Product Forecast
+        </h2>
 
         <div className="form-grid">
           <div className="form-group" style={{ gridColumn: 'span 2' }}>
@@ -181,21 +183,21 @@ export const ForecastingPage: React.FC = () => {
             </select>
 
             {products.length === 0 && !loading && (
-              <div style={{ marginTop: 12, padding: '12px 16px', background: 'rgba(245, 158, 11, 0.1)', border: '1px solid rgba(245, 158, 11, 0.3)', borderRadius: 8, color: '#fcd34d', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+              <div style={{ marginTop: 12, padding: '12px 16px', background: '#fffbeb', border: '1px solid #fde68a', borderRadius: 12, color: '#b45309', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
                 <span>📦 No products found in the database. Add your inventory first to run forecasts.</span>
                 <Link to="/products" className="btn btn-primary btn-sm" style={{ padding: '6px 14px' }}>➕ Go to Products & Stock →</Link>
               </div>
             )}
 
             {selectedProduct && (
-              <div style={{ marginTop: 10, fontSize: '0.85rem', display: 'flex', alignItems: 'center', gap: 8, color: '#94a3b8' }}>
+              <div style={{ marginTop: 10, fontSize: '0.85rem', display: 'flex', alignItems: 'center', gap: 8, color: 'var(--text-muted)' }}>
                 {selectedProduct.ml_ready ? (
-                  <span style={{ color: '#34d399', display: 'flex', alignItems: 'center', gap: 6 }}>
+                  <span style={{ color: '#16a34a', display: 'flex', alignItems: 'center', gap: 6, fontWeight: 500 }}>
                     <span>⚡</span>
                     <strong>Trained Random Forest Ready:</strong> Store Type {selectedProduct.store_type?.toUpperCase()}, Assortment {selectedProduct.assortment?.toUpperCase()}, Comp: {selectedProduct.competition_distance || 0}m, Promo: {selectedProduct.promo_active ? 'Active' : 'Off'}
                   </span>
                 ) : (
-                  <span style={{ color: '#fbbf24', display: 'flex', alignItems: 'center', gap: 6 }}>
+                  <span style={{ color: '#d97706', display: 'flex', alignItems: 'center', gap: 6 }}>
                     <span>⚠️</span>
                     <span>Using Historical Sales Velocity baseline (configure Store Type & Assortment in Product Details for ML).</span>
                   </span>
@@ -244,17 +246,14 @@ export const ForecastingPage: React.FC = () => {
       {/* Latest Forecast Result & Human Decision Panel */}
       {latestForecast && (
         <div
-          className="card"
-          style={{
-            borderColor: latestForecast.stockout_risk_preview === 'HIGH' ? '#ef4444' : '#38bdf8',
-            background: 'rgba(15, 23, 42, 0.95)',
-            boxShadow: '0 8px 30px rgba(0,0,0,0.4)',
-          }}
+          className={`forecast-result-card ${
+            latestForecast.stockout_risk_preview === 'HIGH' ? 'risk-high' : ''
+          }`}
         >
           <div className="card-header">
             <div>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                <span className="card-title" style={{ color: '#38bdf8' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
+                <span style={{ fontSize: '1.25rem', fontWeight: 800, color: 'var(--text-primary)' }}>
                   📊 Forecast #{latestForecast.id}: {latestForecast.product_name || selectedProduct?.name}
                 </span>
                 <span
@@ -266,22 +265,22 @@ export const ForecastingPage: React.FC = () => {
                       : 'badge-low'
                   }`}
                 >
-                  {latestForecast.stockout_risk_preview} RISK PREVIEW
+                  {latestForecast.stockout_risk_preview} RISK
                 </span>
                 <span
                   className={`badge ${
                     latestForecast.status === 'active'
-                      ? 'badge-pending'
+                      ? 'badge-medium'
                       : latestForecast.status === 'acted_on'
-                      ? 'badge-approved'
-                      : 'badge-rejected'
+                      ? 'badge-low'
+                      : 'badge-high'
                   }`}
                 >
                   {latestForecast.status.toUpperCase()}
                 </span>
               </div>
-              <div style={{ color: 'var(--text-secondary)', fontSize: '0.85rem', marginTop: 4 }}>
-                Horizon: {latestForecast.horizon_days} days • Generated {new Date(latestForecast.created_at).toLocaleTimeString()} • Model: {latestForecast.model_used}
+              <div style={{ color: 'var(--text-muted)', fontSize: '0.86rem', marginTop: 4 }}>
+                Planning Horizon: <strong>{latestForecast.horizon_days} Days</strong> • Generated {new Date(latestForecast.created_at).toLocaleTimeString()} • Model: <strong>{latestForecast.model_used}</strong>
               </div>
             </div>
 
@@ -292,49 +291,64 @@ export const ForecastingPage: React.FC = () => {
             )}
           </div>
 
-          {/* Metric Tiles */}
-          <div className="agent-metric-grid" style={{ marginBottom: 20 }}>
-            <div className="agent-metric">
-              <div className="agent-metric-val" style={{ color: '#60a5fa' }}>
+          {/* Metric Tiles (Zomato-Style Clean Soft Gradients) */}
+          <div className="agent-metric-grid" style={{ marginBottom: 24 }}>
+            <div className="agent-metric" style={{ background: '#f0f7ff', borderColor: '#bfdbfe' }}>
+              <div className="agent-metric-val" style={{ color: '#1d4ed8' }}>
                 {latestForecast.predicted_sales.toFixed(1)} units
               </div>
-              <div className="agent-metric-lbl">Predicted Demand</div>
+              <div className="agent-metric-lbl" style={{ color: '#3b82f6' }}>
+                Projected Customer Demand
+              </div>
             </div>
 
-            <div className="agent-metric">
-              <div className="agent-metric-val">{latestForecast.current_stock.toFixed(1)} units</div>
+            <div className="agent-metric" style={{ background: '#f8fafc', borderColor: '#e2e8f0' }}>
+              <div className="agent-metric-val" style={{ color: '#1e293b' }}>
+                {latestForecast.current_stock.toFixed(1)} units
+              </div>
               <div className="agent-metric-lbl">Current On-Hand Stock</div>
             </div>
 
-            <div className="agent-metric">
+            <div
+              className="agent-metric"
+              style={{
+                background: latestForecast.stock_gap_preview > 0 ? '#fff1f2' : '#f0fdf4',
+                borderColor: latestForecast.stock_gap_preview > 0 ? '#fecdd3' : '#bbf7d0',
+              }}
+            >
               <div
                 className="agent-metric-val"
-                style={{ color: latestForecast.stock_gap_preview > 0 ? '#ef4444' : '#10b981' }}
+                style={{ color: latestForecast.stock_gap_preview > 0 ? '#e11d48' : '#16a34a' }}
               >
                 {latestForecast.stock_gap_preview > 0
                   ? `-${latestForecast.stock_gap_preview.toFixed(1)} units (Deficit)`
                   : '✓ Sufficient Stock'}
               </div>
-              <div className="agent-metric-lbl">Stock Gap Preview</div>
+              <div
+                className="agent-metric-lbl"
+                style={{ color: latestForecast.stock_gap_preview > 0 ? '#e11d48' : '#16a34a' }}
+              >
+                Stock Position / Reorder Gap
+              </div>
             </div>
           </div>
 
           {/* Independent Human Decision Action Bar */}
-          <div style={{ borderTop: '1px solid var(--border-color)', paddingTop: 18 }}>
-            <div style={{ fontSize: '0.85rem', fontWeight: 700, color: 'var(--text-secondary)', textTransform: 'uppercase', marginBottom: 10 }}>
-              Shopkeeper Decision Actions for this Forecast:
+          <div style={{ borderTop: '1px solid var(--border-color)', paddingTop: 20 }}>
+            <div style={{ fontSize: '0.84rem', fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', marginBottom: 12, letterSpacing: '0.5px' }}>
+              Recommended Merchant Actions:
             </div>
 
             {latestForecast.status === 'active' ? (
               <div>
                 {!showAdjustInput ? (
-                  <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap' }}>
+                  <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
                     <button
                       className="btn btn-primary"
                       onClick={() => handleAct(latestForecast.id, 'trigger_inventory_check')}
                       disabled={acting}
                     >
-                      {acting ? <span className="spinner"></span> : '📦 Check Inventory Risk & Queue Action'}
+                      {acting ? <span className="spinner"></span> : '⚡ Trigger Inventory Check & Queue Order'}
                     </button>
 
                     <button
@@ -342,7 +356,7 @@ export const ForecastingPage: React.FC = () => {
                       onClick={() => setShowAdjustInput(true)}
                       disabled={acting}
                     >
-                      🚚 Adjust Stock Manually
+                      📦 Adjust Stock Manually
                     </button>
 
                     <button
@@ -350,12 +364,12 @@ export const ForecastingPage: React.FC = () => {
                       onClick={() => handleAct(latestForecast.id, 'dismiss')}
                       disabled={acting}
                     >
-                      ✕ Dismiss Forecast
+                      ✕ Dismiss
                     </button>
                   </div>
                 ) : (
-                  <div style={{ background: 'var(--bg-main)', padding: 16, borderRadius: 10, border: '1px solid var(--border-color)', maxWidth: 500 }}>
-                    <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: 600, color: '#e0e7ff', marginBottom: 8 }}>
+                  <div style={{ background: '#ffffff', padding: 18, borderRadius: 14, border: '1px solid var(--border-color)', maxWidth: 520, boxShadow: 'var(--shadow-xs)' }}>
+                    <label style={{ display: 'block', fontSize: '0.88rem', fontWeight: 600, color: 'var(--text-primary)', marginBottom: 8 }}>
                       Set New Physical Stock Count for {selectedProduct?.name}:
                     </label>
                     <div style={{ display: 'flex', gap: 10 }}>
@@ -368,7 +382,7 @@ export const ForecastingPage: React.FC = () => {
                         onChange={(e) => setStockAdjustValue(Number(e.target.value))}
                       />
                       <button
-                        className="btn btn-success"
+                        className="btn btn-primary"
                         onClick={() => handleAct(latestForecast.id, 'adjust_stock', stockAdjustValue)}
                         disabled={acting}
                       >

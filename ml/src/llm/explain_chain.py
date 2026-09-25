@@ -30,7 +30,8 @@ CRITICAL CONSTRAINTS:
 3. Use ONLY the facts, amounts, days, and percentages explicitly listed in the Decision Data and Supporting Agent Facts.
 4. NEVER invent, estimate, extrapolate, or hallucinate any number, percentage, or currency amount not given in the input.
 5. Use simple, clear language that a small shopkeeper would easily understand.
-6. If a customer payment reminder is recommended, draft a short, polite payment reminder message for that customer in suggested_customer_message; otherwise set suggested_customer_message to null.
+6. Currency is Indian Rupee (₹ / INR). Never use EUR or other foreign currencies. Always refer to products and customers by their readable names given in the input.
+7. If a customer payment reminder is recommended, draft a short, polite payment reminder message for that customer in suggested_customer_message; otherwise set suggested_customer_message to null.
 
 You MUST respond ONLY with a raw JSON object with keys "summary", "reasoning", "suggested_customer_message". Do NOT include markdown formatting or additional commentary outside the JSON object.
 """
@@ -113,8 +114,12 @@ def explain_decision(decision_dict: Dict[str, Any], supporting_facts_dict: Dict[
             "profitability_facts": prof_facts,
         })
 
-        # BUG 1 LOG: Print the RAW, unprocessed response object returned by the Groq API call
-        print(f"  [RAW GROQ RESPONSE OBJECT]\n  {repr(raw_response)}")
+        # Safely log raw response object without Windows charmap encoding crash
+        try:
+            safe_rep = repr(raw_response).encode("ascii", "replace").decode("ascii")
+            print(f"  [RAW GROQ RESPONSE OBJECT]\n  {safe_rep}")
+        except Exception:
+            pass
 
         raw_text = raw_response.content if hasattr(raw_response, "content") else str(raw_response)
         clean_text = raw_text.replace("```json", "").replace("```", "").strip()

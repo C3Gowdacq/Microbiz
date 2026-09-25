@@ -6,7 +6,10 @@ Endpoints:
   GET    /api/products              list all products
   GET    /api/products/{id}         get a single product
   PUT    /api/products/{id}         update product fields (price, reorder levels etc.)
-  PUT    /api/products/{id}/stock   set current_stock directly (e.g. after delivery)
+  PUT    /api/products/{id}/stock   set current_stock via inventory service (creates InventoryEvent)
+
+Phase 2: /stock endpoint now goes through inventory_service.adjust_stock()
+which creates an immutable InventoryEvent + AuditLog for every stock change.
 """
 
 import uuid
@@ -17,6 +20,7 @@ from sqlalchemy.orm import Session
 from backend.app.database import get_db
 from backend.app.models import Product
 from backend.app.schemas import ProductCreate, ProductUpdate, ProductStockUpdate, ProductResponse
+from backend.app.services.inventory_service import adjust_stock
 
 router = APIRouter(prefix="/api/products", tags=["Products"])
 
@@ -107,18 +111,23 @@ def update_product(product_id: str, req: ProductUpdate, db: Session = Depends(ge
 @router.put("/{product_id}/stock", response_model=ProductResponse)
 def update_product_stock(product_id: str, req: ProductStockUpdate, db: Session = Depends(get_db)):
     """
-    Directly set current_stock on a product.
+    Directly set current_stock on a product via the inventory service.
+    Creates an InventoryEvent (MANUAL_ADJUSTMENT) and AuditLog entry.
     Use this after receiving a delivery or performing a manual stock count.
     """
-    product = db.query(Product).filter(Product.id == product_id).first()
-    if not product:
-        raise HTTPException(status_code=404, detail=f"Product '{product_id}' not found")
-
-    if req.current_stock < 0:
-        raise HTTPException(status_code=422, detail="current_stock cannot be negative")
-
-    product.current_stock = req.current_stock
-    db.commit()
-    db.refresh(product)
-    return _product_to_response(product)
-
+    try:
+        adjust_stock(
+            product_id   = product_id,
+            new_quantity = req.current_stock,
+            notes        = "Manual stock update via API",
+            db           = db,
+        )
+        db.commit()
+        product = db.query(Product).filter(Product.id == product_id).first()
+        return _product_to_response(product)
+    except HTTPException:
+        db.rollback()
+        raise
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(status_code=500, detail=f"Failed to update stock: {str(e)}")
