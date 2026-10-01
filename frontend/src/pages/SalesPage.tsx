@@ -11,6 +11,7 @@ import {
   SaleCreate,
   InventoryRisk,
 } from '../api';
+import { ProductCombobox } from '../components/ProductCombobox';
 
 export const SalesPage: React.FC = () => {
   const [products, setProducts] = useState<Product[]>([]);
@@ -333,98 +334,128 @@ export const SalesPage: React.FC = () => {
             </div>
           )}
 
-          <div className="form-grid">
-            <div className="form-group">
-              <label>Select Product *</label>
-              <select
-                className="form-control"
-                value={formData.product_id}
-                onChange={(e) => handleProductChange(e.target.value)}
-                required
-              >
-                <option value="" disabled>-- Select a Product --</option>
-                {products.map((p) => (
-                  <option key={p.id} value={p.id}>
-                    {p.name} ({p.sku}) — Stock: {p.current_stock} — ₹{p.selling_price.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
-                  </option>
-                ))}
-              </select>
-            </div>
+          {/* Modern 2-Column POS Workspace */}
+          <div style={{ display: 'grid', gridTemplateColumns: 'minmax(320px, 1.4fr) minmax(260px, 1fr)', gap: '24px', alignItems: 'start' }}>
+            {/* Left Column: Product Selection & Pricing */}
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '18px' }}>
+              <div className="form-group">
+                <label style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
+                  <span style={{ fontWeight: 700, fontSize: '0.88rem', color: '#0f172a' }}>Select Catalog Product *</span>
+                  <span style={{ fontSize: '0.74rem', color: '#64748b' }}>
+                    Quick search across {products.length} catalog items
+                  </span>
+                </label>
+                <ProductCombobox
+                  products={products}
+                  selectedProductId={formData.product_id}
+                  onSelect={handleProductChange}
+                />
+              </div>
 
-            <div className="form-group">
-              <label>Quantity *</label>
-              <input
-                type="number"
-                min="1"
-                step="1"
-                required
-                className="form-control"
-                value={formData.quantity}
-                onChange={(e) => setFormData({ ...formData, quantity: Number(e.target.value) })}
-              />
-              {selectedProduct && (
-                <span style={{ fontSize: '0.75rem', color: selectedProduct.current_stock < formData.quantity ? '#ef4444' : 'var(--text-muted)' }}>
-                  Available in stock: {selectedProduct.current_stock}
-                </span>
-              )}
-            </div>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '14px' }}>
+                <div className="form-group">
+                  <label style={{ fontWeight: 700, fontSize: '0.84rem', color: '#334155' }}>Quantity *</label>
+                  <input
+                    type="number"
+                    min="1"
+                    step="1"
+                    required
+                    className="form-control"
+                    value={formData.quantity}
+                    onChange={(e) => setFormData({ ...formData, quantity: Number(e.target.value) })}
+                    style={{ fontSize: '1.05rem', fontWeight: 700 }}
+                  />
+                  {selectedProduct && (
+                    <span style={{ fontSize: '0.74rem', fontWeight: 600, color: selectedProduct.current_stock < formData.quantity ? '#dc2626' : '#16a34a', marginTop: '4px', display: 'block' }}>
+                      Available in stock: {selectedProduct.current_stock}
+                    </span>
+                  )}
+                </div>
 
-            <div className="form-group">
-              <label>Unit Price (₹) *</label>
-              <input
-                type="number"
-                step="0.01"
-                required
-                className="form-control"
-                value={formData.unit_price}
-                onChange={(e) => setFormData({ ...formData, unit_price: Number(e.target.value) })}
-              />
-            </div>
-
-            <div className="form-group">
-              <label>Customer (Optional)</label>
-              <select
-                className="form-control"
-                value={formData.customer_id || ''}
-                onChange={(e) => setFormData({ ...formData, customer_id: e.target.value })}
-              >
-                <option value="">-- Walk-in / Anonymous Customer --</option>
-                {customers.map((c) => (
-                  <option key={c.id} value={c.id}>
-                    {c.name} {c.email ? `(${c.email})` : ''}
-                  </option>
-                ))}
-              </select>
-            </div>
-
-            <div className="form-group">
-              <label>Sale Date</label>
-              <input
-                type="date"
-                className="form-control"
-                value={formData.date || ''}
-                onChange={(e) => setFormData({ ...formData, date: e.target.value })}
-              />
-            </div>
-
-            <div className="form-group" style={{ justifyContent: 'center' }}>
-              <label>Total Bill Amount</label>
-              <div style={{ fontSize: '1.6rem', fontWeight: 800, color: '#38bdf8' }}>
-                ₹{totalAmount.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+                <div className="form-group">
+                  <label style={{ fontWeight: 700, fontSize: '0.84rem', color: '#334155' }}>Unit Price (₹) *</label>
+                  <input
+                    type="number"
+                    step="0.01"
+                    required
+                    className="form-control"
+                    value={formData.unit_price}
+                    onChange={(e) => setFormData({ ...formData, unit_price: Number(e.target.value) })}
+                    style={{ fontSize: '1.05rem', fontWeight: 700 }}
+                  />
+                </div>
               </div>
             </div>
-          </div>
 
-          <button
-            type="submit"
-            className="btn btn-primary"
-            disabled={recording || products.length === 0}
-            style={{ width: '100%', marginTop: 8 }}
-          >
-            {recording ? <span className="spinner"></span> : '💳 Complete & Record Sale'}
-          </button>
+            {/* Right Column: Customer Khata, Date, and Live Bill Summary Card */}
+            <div style={{ background: '#f8fafc', border: '1.5px solid #e2e8f0', borderRadius: '16px', padding: '18px 20px', display: 'flex', flexDirection: 'column', gap: '14px' }}>
+              <div className="form-group">
+                <label style={{ fontWeight: 700, fontSize: '0.84rem', color: '#334155' }}>Customer (Khata Credit or Walk-in)</label>
+                <select
+                  className="form-control"
+                  value={formData.customer_id || ''}
+                  onChange={(e) => setFormData({ ...formData, customer_id: e.target.value })}
+                  style={{ background: '#ffffff', borderRadius: '10px' }}
+                >
+                  <option value="">👤 Walk-in / Cash Customer</option>
+                  {customers.map((c) => (
+                    <option key={c.id} value={c.id}>
+                      📖 {c.name} {c.phone ? `(${c.phone})` : ''}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div className="form-group">
+                <label style={{ fontWeight: 700, fontSize: '0.84rem', color: '#334155' }}>Billing Date</label>
+                <input
+                  type="date"
+                  className="form-control"
+                  value={formData.date || ''}
+                  onChange={(e) => setFormData({ ...formData, date: e.target.value })}
+                  style={{ background: '#ffffff', borderRadius: '10px' }}
+                />
+              </div>
+
+              {/* Total Calculation Tile */}
+              <div style={{ background: 'linear-gradient(135deg, #ffffff 0%, #fff1f2 100%)', border: '1.5px solid #fecdd3', borderRadius: '12px', padding: '14px 16px', marginTop: '2px' }}>
+                <div style={{ fontSize: '0.74rem', textTransform: 'uppercase', color: '#9f1239', fontWeight: 700, letterSpacing: '0.04em' }}>
+                  Total Bill Amount
+                </div>
+                <div style={{ fontSize: '1.85rem', fontWeight: 900, color: '#e23744', marginTop: '2px' }}>
+                  ₹{totalAmount.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+                </div>
+                {selectedProduct && (
+                  <div style={{ fontSize: '0.75rem', color: '#64748b', marginTop: '4px' }}>
+                    {formData.quantity} × ₹{Number(formData.unit_price).toFixed(2)} ({selectedProduct.name})
+                  </div>
+                )}
+              </div>
+
+              <button
+                type="submit"
+                className="btn btn-primary"
+                disabled={recording || products.length === 0}
+                style={{
+                  width: '100%',
+                  padding: '13px',
+                  fontSize: '1rem',
+                  fontWeight: 800,
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: '8px',
+                  boxShadow: '0 4px 14px rgba(226, 55, 68, 0.35)',
+                  cursor: recording || products.length === 0 ? 'not-allowed' : 'pointer',
+                }}
+              >
+                {recording ? <span className="spinner"></span> : '💳 Complete & Record Sale'}
+              </button>
+            </div>
+          </div>
         </form>
       </div>
+
 
       {/* Recent Sales History */}
       <div className="card">
