@@ -6,6 +6,8 @@ import {
   createInvoice,
   recordPayment,
   checkCustomerCredit,
+  sendCustomerReminder,
+  getSettings,
   Customer,
   CustomerSummary,
   InvoiceSummaryItem,
@@ -25,6 +27,10 @@ export const CustomerDetailPage: React.FC = () => {
   const [checkingCredit, setCheckingCredit] = useState<boolean>(false);
   const [creditResult, setCreditResult] = useState<CheckCreditResponse | null>(null);
 
+  // Twilio Reminder State
+  const [sendingReminder, setSendingReminder] = useState<boolean>(false);
+  const [reminderSuccess, setReminderSuccess] = useState<string | null>(null);
+
   // Invoice Modal State
   const [showInvoiceModal, setShowInvoiceModal] = useState<boolean>(false);
   const [creatingInvoice, setCreatingInvoice] = useState<boolean>(false);
@@ -38,6 +44,29 @@ export const CustomerDetailPage: React.FC = () => {
   const [selectedInvoice, setSelectedInvoice] = useState<InvoiceSummaryItem | null>(null);
   const [paymentAmount, setPaymentAmount] = useState<number>(0);
   const [recordingPayment, setRecordingPayment] = useState<boolean>(false);
+
+  const [isAutonomous, setIsAutonomous] = useState<boolean>(true);
+
+  // Sync mode
+  useEffect(() => {
+    const fetchMode = async () => {
+      try {
+        const settings = await getSettings();
+        setIsAutonomous(settings.autonomous_mode);
+      } catch {}
+    };
+    fetchMode();
+
+    const handleModeChange = (e: any) => {
+      if (typeof e.detail === 'boolean') {
+        setIsAutonomous(e.detail);
+      } else {
+        fetchMode();
+      }
+    };
+    window.addEventListener('modeChange', handleModeChange);
+    return () => window.removeEventListener('modeChange', handleModeChange);
+  }, []);
 
   const loadCustomerData = async () => {
     if (!id) return;
@@ -72,6 +101,23 @@ export const CustomerDetailPage: React.FC = () => {
       setError(err?.response?.data?.detail || err.message || 'Credit check failed');
     } finally {
       setCheckingCredit(false);
+    }
+  };
+
+  const handleSendReminder = async (channel: 'sms' | 'whatsapp' = 'sms') => {
+    if (!id || !customer) return;
+    try {
+      setSendingReminder(true);
+      setError(null);
+      setReminderSuccess(null);
+      const res = await sendCustomerReminder(id, channel);
+      setReminderSuccess(
+        `Dispatched payment reminder to ${customer.name} (${res.phone || customer.phone}). Gateway response: ${res.result?.status?.toUpperCase() || 'SENT'}`
+      );
+    } catch (err: any) {
+      setError(err?.response?.data?.detail || err.message || 'Failed to dispatch reminder');
+    } finally {
+      setSendingReminder(false);
     }
   };
 
@@ -167,9 +213,25 @@ export const CustomerDetailPage: React.FC = () => {
         </div>
 
         <div className="header-actions">
-          <button className="btn btn-primary" onClick={handleCheckCreditRisk} disabled={checkingCredit}>
-            {checkingCredit ? <span className="spinner"></span> : '🔍 Run Credit Risk Check'}
-          </button>
+          {balance > 0 && (
+            <button
+              className="btn btn-primary"
+              onClick={() => handleSendReminder('sms')}
+              disabled={sendingReminder}
+              style={{ background: '#2563eb', borderColor: '#1d4ed8', fontWeight: 600 }}
+              title="Dispatch payment reminder to customer via SMS"
+            >
+              {sendingReminder ? <span className="spinner"></span> : '📲 Send Payment Reminder SMS'}
+            </button>
+          )}
+
+          {/* AI Credit Risk Check only available in Autonomous mode */}
+          {isAutonomous && (
+            <button className="btn btn-secondary" onClick={handleCheckCreditRisk} disabled={checkingCredit}>
+              {checkingCredit ? <span className="spinner"></span> : '🔍 Run Credit Risk Check'}
+            </button>
+          )}
+
           <button className="btn btn-secondary" onClick={() => setShowInvoiceModal(true)}>
             ➕ Issue Invoice
           </button>
@@ -178,11 +240,17 @@ export const CustomerDetailPage: React.FC = () => {
 
       {error && <div className="error-banner">⚠️ {error}</div>}
 
-      {/* Credit Agent Result Alert */}
-      {creditResult && (
-        <div className="card" style={{ borderColor: '#f59e0b', background: 'rgba(30, 27, 75, 0.5)' }}>
-          <div className="card-header">
-            <div className="card-title" style={{ color: '#fbbf24', display: 'flex', alignItems: 'center', gap: 8 }}>
+      {reminderSuccess && (
+        <div style={{ background: '#ecfdf5', color: '#065f46', border: '1px solid #a7f3d0', padding: '12px 16px', borderRadius: 8, marginBottom: 18, fontWeight: 500 }}>
+          ✅ {reminderSuccess}
+        </div>
+      )}
+
+      {/* Credit Agent Result Alert - Only in Autonomous mode with clean, high-contrast light theme */}
+      {isAutonomous && creditResult && (
+        <div className="card" style={{ borderColor: '#fed7aa', background: '#fffbeb', marginBottom: '24px' }}>
+          <div className="card-header" style={{ marginBottom: '14px' }}>
+            <div className="card-title" style={{ color: '#9a3412', display: 'flex', alignItems: 'center', gap: 8 }}>
               <span>💳 Live Customer Credit Agent Analysis</span>
               {creditResult.agent_result && (
                 <span
@@ -207,25 +275,27 @@ export const CustomerDetailPage: React.FC = () => {
 
           {creditResult.agent_result ? (
             <div className="agent-metric-grid">
-              <div className="agent-metric">
-                <div className="agent-metric-val">₹{creditResult.agent_result.outstanding_amount.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</div>
-                <div className="agent-metric-lbl">Outstanding Debt</div>
+              <div className="agent-metric" style={{ background: '#ffffff', borderColor: '#fde68a' }}>
+                <div className="agent-metric-val" style={{ color: '#0f172a' }}>
+                  ₹{creditResult.agent_result.outstanding_amount.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+                </div>
+                <div className="agent-metric-lbl" style={{ color: '#9a3412' }}>Outstanding Debt</div>
               </div>
-              <div className="agent-metric">
+              <div className="agent-metric" style={{ background: '#ffffff', borderColor: '#fde68a' }}>
                 <div className="agent-metric-val" style={{ color: creditResult.agent_result.days_overdue > 0 ? '#ef4444' : '#10b981' }}>
                   {creditResult.agent_result.days_overdue} days
                 </div>
-                <div className="agent-metric-lbl">Days Overdue</div>
+                <div className="agent-metric-lbl" style={{ color: '#9a3412' }}>Days Overdue</div>
               </div>
-              <div className="agent-metric">
-                <div className="agent-metric-val" style={{ textTransform: 'capitalize', color: '#60a5fa' }}>
-                  {creditResult.agent_result.recommended_action.replace('_', ' ')}
+              <div className="agent-metric" style={{ background: '#ffffff', borderColor: '#fde68a' }}>
+                <div className="agent-metric-val" style={{ textTransform: 'capitalize', color: '#2563eb' }}>
+                  {creditResult.agent_result.recommended_action.replace(/_/g, ' ')}
                 </div>
-                <div className="agent-metric-lbl">Recommended Action</div>
+                <div className="agent-metric-lbl" style={{ color: '#9a3412' }}>Recommended Action</div>
               </div>
             </div>
           ) : (
-            <p style={{ color: '#a7f3d0' }}>{creditResult.message || 'No outstanding debt for this customer.'}</p>
+            <p style={{ color: '#166534', margin: 0 }}>{creditResult.message || 'No outstanding debt for this customer.'}</p>
           )}
         </div>
       )}

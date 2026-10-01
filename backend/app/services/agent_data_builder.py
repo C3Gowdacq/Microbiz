@@ -255,6 +255,16 @@ def build_expense_input(
         .scalar()
     )
 
+    # Fallback to column-stored prior_period_amount if no historical prior rows exist
+    if prior_total == 0.0:
+        stored_prior = float(
+            db.query(func.coalesce(func.sum(Expense.prior_period_amount), 0.0))
+            .filter(Expense.category == category)
+            .scalar()
+        )
+        if stored_prior > 0.0:
+            prior_total = stored_prior
+
     return {
         "category": category,
         "current_period_amount": round(current_total, 2),

@@ -10,6 +10,11 @@ import {
 } from '../api';
 
 const DEFAULT_CATEGORIES = [
+  'Logistics & Transport',
+  'Electricity & Utilities',
+  'Rent & Lease',
+  'Packaging & Sundries',
+  'Digital Marketing & Adverts',
   'Rent',
   'Utilities',
   'Employee Wages',
@@ -125,10 +130,22 @@ export const ExpensesPage: React.FC = () => {
 
       {/* Trend Result Card */}
       {trendResult && (
-        <div className="card" style={{ borderColor: '#ef4444', background: 'rgba(30, 27, 75, 0.4)' }}>
-          <div className="card-header">
-            <div className="card-title" style={{ color: '#fca5a5', display: 'flex', alignItems: 'center', gap: 8 }}>
-              <span>💸 Live Expense Trend Agent Assessment: {trendResult.category}</span>
+        <div
+          className="card"
+          style={{
+            background: '#ffffff',
+            border: trendResult.agent_result.risk === 'HIGH' ? '2px solid #ef4444' : trendResult.agent_result.risk === 'MEDIUM' ? '2px solid #f59e0b' : '2px solid #10b981',
+            boxShadow: '0 8px 24px rgba(0, 0, 0, 0.06)',
+            borderRadius: '12px',
+            marginBottom: '24px',
+            padding: '20px 24px',
+          }}
+        >
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16, flexWrap: 'wrap', gap: 12 }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
+              <span style={{ fontSize: '1.25rem', fontWeight: 800, color: '#0f172a' }}>
+                📊 Expense Trend Assessment: {trendResult.category}
+              </span>
               <span
                 className={`badge ${
                   trendResult.agent_result.risk === 'HIGH'
@@ -137,30 +154,50 @@ export const ExpensesPage: React.FC = () => {
                     ? 'badge-medium'
                     : 'badge-low'
                 }`}
+                style={{ fontSize: '0.8rem', padding: '4px 10px' }}
               >
                 {trendResult.agent_result.risk} RISK
               </span>
             </div>
-            {trendResult.recommendation_created && (
-              <Link to="/recommendations" className="btn btn-danger btn-sm">
-                Budget Review Action Queued in Inbox →
-              </Link>
-            )}
+            <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+              {trendResult.recommendation_created && (
+                <Link to="/recommendations" className="btn btn-danger btn-sm" style={{ fontWeight: 600 }}>
+                  🚨 View Review Action in Inbox →
+                </Link>
+              )}
+              <button
+                className="btn btn-secondary btn-sm"
+                onClick={() => setTrendResult(null)}
+                style={{ padding: '4px 10px', fontSize: '0.8rem', color: '#64748b' }}
+                title="Dismiss Card"
+              >
+                ✕ Close
+              </button>
+            </div>
           </div>
 
-          <div className="agent-metric-grid">
-            <div className="agent-metric">
-              <div className="agent-metric-val">₹{trendResult.agent_result.current_period_amount.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</div>
-              <div className="agent-metric-lbl">Current Period Total (30d)</div>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))', gap: 14 }}>
+            <div style={{ background: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: 8, padding: '12px 16px' }}>
+              <div style={{ fontSize: '0.8rem', color: '#64748b', fontWeight: 600, textTransform: 'uppercase' }}>Current 30d Total</div>
+              <div style={{ fontSize: '1.35rem', fontWeight: 800, color: '#0f172a', marginTop: 4 }}>
+                ₹{trendResult.agent_result.current_period_amount.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+              </div>
             </div>
-            <div className="agent-metric">
-              <div className="agent-metric-val">₹{trendResult.agent_result.prior_period_amount.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</div>
-              <div className="agent-metric-lbl">Prior Period Total (30d)</div>
+
+            <div style={{ background: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: 8, padding: '12px 16px' }}>
+              <div style={{ fontSize: '0.8rem', color: '#64748b', fontWeight: 600, textTransform: 'uppercase' }}>Prior 30d Total</div>
+              <div style={{ fontSize: '1.35rem', fontWeight: 800, color: '#0f172a', marginTop: 4 }}>
+                ₹{trendResult.agent_result.prior_period_amount.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+              </div>
             </div>
-            <div className="agent-metric">
+
+            <div style={{ background: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: 8, padding: '12px 16px' }}>
+              <div style={{ fontSize: '0.8rem', color: '#64748b', fontWeight: 600, textTransform: 'uppercase' }}>Period Delta %</div>
               <div
-                className="agent-metric-val"
                 style={{
+                  fontSize: '1.35rem',
+                  fontWeight: 800,
+                  marginTop: 4,
                   color:
                     trendResult.agent_result.increase_pct && trendResult.agent_result.increase_pct > 30
                       ? '#ef4444'
@@ -169,15 +206,15 @@ export const ExpensesPage: React.FC = () => {
               >
                 {trendResult.agent_result.increase_pct !== null && trendResult.agent_result.increase_pct !== undefined
                   ? `${trendResult.agent_result.increase_pct > 0 ? '+' : ''}${trendResult.agent_result.increase_pct.toFixed(1)}%`
-                  : 'N/A (New)'}
+                  : 'N/A (New Category)'}
               </div>
-              <div className="agent-metric-lbl">Period Delta %</div>
             </div>
-            <div className="agent-metric">
-              <div className="agent-metric-val" style={{ textTransform: 'capitalize', color: '#60a5fa' }}>
+
+            <div style={{ background: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: 8, padding: '12px 16px' }}>
+              <div style={{ fontSize: '0.8rem', color: '#64748b', fontWeight: 600, textTransform: 'uppercase' }}>Detected Trend</div>
+              <div style={{ fontSize: '1.35rem', fontWeight: 800, color: '#2563eb', marginTop: 4, textTransform: 'capitalize' }}>
                 {trendResult.agent_result.trend}
               </div>
-              <div className="agent-metric-lbl">Detected Trend</div>
             </div>
           </div>
         </div>
@@ -264,8 +301,8 @@ export const ExpensesPage: React.FC = () => {
             Run the autonomous expense agent to detect sudden spikes (&gt;30% increase) in any category.
           </p>
 
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-            {DEFAULT_CATEGORIES.slice(0, 6).map((cat) => (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 8, maxHeight: '360px', overflowY: 'auto' }}>
+            {DEFAULT_CATEGORIES.slice(0, 8).map((cat) => (
               <div
                 key={cat}
                 style={{

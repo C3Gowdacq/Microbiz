@@ -1,6 +1,8 @@
 import React from 'react';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
+import { AuthProvider } from './context/AuthContext';
 import { Layout } from './components/Layout';
+import { AuthPage } from './pages/AuthPage';
 import { DashboardPage } from './pages/DashboardPage';
 import { ProductsPage } from './pages/ProductsPage';
 import { ProductDetailPage } from './pages/ProductDetailPage';
@@ -13,28 +15,39 @@ import { CustomerDetailPage } from './pages/CustomerDetailPage';
 import { ExpensesPage } from './pages/ExpensesPage';
 import { RecommendationsPage } from './pages/RecommendationsPage';
 import { SettingsPage } from './pages/SettingsPage';
+import { AgentGraphPage } from './pages/AgentGraphPage';
+import { DigitalTwinPage } from './pages/DigitalTwinPage';
 
 export const App: React.FC = () => {
   return (
-    <BrowserRouter>
-      <Routes>
-        <Route element={<Layout />}>
-          <Route path="/" element={<DashboardPage />} />
-          <Route path="/products" element={<ProductsPage />} />
-          <Route path="/products/:id" element={<ProductDetailPage />} />
-          <Route path="/forecasting" element={<ForecastingPage />} />
-          <Route path="/sales" element={<SalesPage />} />
-          <Route path="/purchase-orders" element={<PurchaseOrdersPage />} />
-          <Route path="/automation" element={<AutomationPage />} />
-          <Route path="/customers" element={<CustomersPage />} />
-          <Route path="/customers/:id" element={<CustomerDetailPage />} />
-          <Route path="/expenses" element={<ExpensesPage />} />
-          <Route path="/recommendations" element={<RecommendationsPage />} />
-          <Route path="/settings" element={<SettingsPage />} />
-          <Route path="*" element={<Navigate to="/" replace />} />
-        </Route>
-      </Routes>
-    </BrowserRouter>
+    <AuthProvider>
+      <BrowserRouter>
+        <Routes>
+          {/* Public Auth Portal */}
+          <Route path="/login" element={<AuthPage />} />
+          <Route path="/register" element={<AuthPage />} />
+
+          {/* Authenticated Store Views */}
+          <Route element={<Layout />}>
+            <Route path="/" element={<DashboardPage />} />
+            <Route path="/products" element={<ProductsPage />} />
+            <Route path="/products/:id" element={<ProductDetailPage />} />
+            <Route path="/forecasting" element={<ForecastingPage />} />
+            <Route path="/sales" element={<SalesPage />} />
+            <Route path="/purchase-orders" element={<PurchaseOrdersPage />} />
+            <Route path="/automation" element={<AutomationPage />} />
+            <Route path="/customers" element={<CustomersPage />} />
+            <Route path="/customers/:id" element={<CustomerDetailPage />} />
+            <Route path="/expenses" element={<ExpensesPage />} />
+            <Route path="/recommendations" element={<RecommendationsPage />} />
+            <Route path="/agent-graph" element={<AgentGraphPage />} />
+            <Route path="/simulation" element={<DigitalTwinPage />} />
+            <Route path="/settings" element={<SettingsPage />} />
+            <Route path="*" element={<Navigate to="/" replace />} />
+          </Route>
+        </Routes>
+      </BrowserRouter>
+    </AuthProvider>
   );
 };
 

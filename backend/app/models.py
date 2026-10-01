@@ -159,6 +159,10 @@ class BusinessSettings(Base):
     autonomous_mode = Column(Boolean, default=False)
 
 
+# Backward-compatible alias
+Setting = BusinessSettings
+
+
 # ── 2. HITL Persistence Models ────────────────────────────────────────────────
 
 class Recommendation(Base):

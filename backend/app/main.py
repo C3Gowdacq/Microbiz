@@ -40,6 +40,7 @@ from backend.app.routers import products, customers, sales, invoices, expenses, 
 from backend.app.routers import agents as agents_router
 from backend.app.routers import forecasts as forecasts_router
 from backend.app.routers import suppliers, purchase_orders
+from backend.app.routers import simulation, agent_graph
 
 # Import agent data builder (real DB -> agent inputs)
 from backend.app.services.agent_data_builder import (
@@ -90,6 +91,8 @@ app.include_router(forecasts_router.router)  # dedicated sales forecasting route
 app.include_router(suppliers.router)
 app.include_router(purchase_orders.router)
 app.include_router(settings_router.automation_router)
+app.include_router(simulation.router)
+app.include_router(agent_graph.router)
 
 
 # ── Root ──────────────────────────────────────────────────────────────────────

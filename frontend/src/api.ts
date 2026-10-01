@@ -411,6 +411,35 @@ export const checkCustomerCredit = async (id: string): Promise<CheckCreditRespon
   return res.data;
 };
 
+export interface SendReminderResponse {
+  customer_id: string;
+  customer_name: string;
+  phone: string;
+  channel: string;
+  result: {
+    status: string;
+    sid?: string;
+    to?: string;
+    body?: string;
+    detail?: string;
+  };
+}
+
+export const sendCustomerReminder = async (
+  customerId: string,
+  channel: 'sms' | 'whatsapp' = 'sms',
+  customMessage?: string
+): Promise<SendReminderResponse> => {
+  const res = await api.post<SendReminderResponse>(`/api/customers/${customerId}/send-reminder`, null, {
+    params: {
+      channel,
+      ...(customMessage ? { custom_message: customMessage } : {}),
+    },
+  });
+  return res.data;
+};
+
+
 // Invoices & Payments
 export const getInvoices = async (customerId?: string): Promise<Invoice[]> => {
   const res = await api.get<Invoice[]>('/api/invoices', {
@@ -779,6 +808,105 @@ export const getAutomationStatus = async (): Promise<AutomationStatus> => {
 
 export const toggleAutonomousMode = async (): Promise<BusinessSettings> => {
   const res = await api.post<BusinessSettings>('/api/settings/toggle-autonomous');
+  return res.data;
+};
+
+// ── 5. LangGraph & Monte Carlo Digital Twin APIs ───────────────────────────
+
+export interface GraphNode {
+  id: string;
+  label: string;
+  role: string;
+  category: string;
+  description: string;
+  icon: string;
+  color: string;
+}
+
+export interface GraphEdge {
+  source: string;
+  target: string;
+  label?: string | null;
+  is_conditional?: boolean;
+}
+
+export interface GraphTopology {
+  nodes: GraphNode[];
+  edges: GraphEdge[];
+}
+
+export interface StepTrace {
+  step_id: number;
+  node_id: string;
+  node_name: string;
+  status: 'completed' | 'conflict_veto' | 'compromise_reached' | 'delegated_hitl';
+  execution_time_ms: number;
+  input_summary: Record<string, any>;
+  output_summary: Record<string, any>;
+  decision_log: string;
+  arbitration_details?: Record<string, any> | null;
+}
+
+export interface ExecutionTraceResponse {
+  trace_id: string;
+  timestamp: string;
+  total_latency_ms: number;
+  consensus_reached: boolean;
+  arbitration_event_present: boolean;
+  steps: StepTrace[];
+  final_output: Record<string, any>;
+}
+
+export const getGraphTopology = async (): Promise<GraphTopology> => {
+  const res = await api.get<GraphTopology>('/api/agents/graph/topology');
+  return res.data;
+};
+
+export const executeGraphTrace = async (): Promise<ExecutionTraceResponse> => {
+  const res = await api.post<ExecutionTraceResponse>('/api/agents/graph/trace');
+  return res.data;
+};
+
+export interface MonteCarloRequest {
+  demand_shock_pct: number;
+  supplier_inflation_pct: number;
+  credit_default_rate_pct: number;
+  horizon_days: number;
+  num_simulations: number;
+  enable_ai_safeguards: boolean;
+}
+
+export interface TrajectoryPoint {
+  day: number;
+  p5: number;
+  p25: number;
+  p50: number;
+  p75: number;
+  p95: number;
+  unmanaged_p50: number;
+}
+
+export interface MonteCarloResponse {
+  horizon_days: number;
+  num_simulations: number;
+  starting_cash: number;
+  min_cash_reserve: number;
+  probability_of_insolvency_pct: number;
+  unmanaged_insolvency_pct: number;
+  value_at_risk_95: number;
+  expected_ending_cash: number;
+  unmanaged_ending_cash: number;
+  daily_cash_burn_rate: number;
+  stress_verdict: string;
+  risk_color: string;
+  executive_summary: string;
+  trajectories: TrajectoryPoint[];
+}
+
+export const runMonteCarloSimulation = async (
+  params: MonteCarloRequest
+): Promise<MonteCarloResponse> => {
+  const res = await api.post<MonteCarloResponse>('/api/simulation/monte-carlo', params);
   return res.data;
 };
 

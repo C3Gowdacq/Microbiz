@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import {
   getPurchaseOrders,
   createPurchaseOrder,
@@ -6,6 +7,7 @@ import {
   receivePurchaseOrder,
   getSuppliers,
   getProducts,
+  getSettings,
   PurchaseOrder,
   Supplier,
   Product,
@@ -13,10 +15,12 @@ import {
 } from '../api';
 
 export const PurchaseOrdersPage: React.FC = () => {
+  const navigate = useNavigate();
   const [pos, setPos] = useState<PurchaseOrder[]>([]);
   const [suppliers, setSuppliers] = useState<Supplier[]>([]);
   const [products, setProducts] = useState<Product[]>([]);
   const [statusFilter, setStatusFilter] = useState<string>('ALL');
+  const [isAutonomous, setIsAutonomous] = useState<boolean>(true);
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
   const [successMsg, setSuccessMsg] = useState<string | null>(null);
@@ -61,6 +65,23 @@ export const PurchaseOrdersPage: React.FC = () => {
 
   useEffect(() => {
     fetchData();
+    const fetchMode = async () => {
+      try {
+        const s = await getSettings();
+        setIsAutonomous(s.autonomous_mode);
+      } catch {}
+    };
+    fetchMode();
+
+    const handleModeChange = (e: any) => {
+      if (typeof e.detail === 'boolean') {
+        setIsAutonomous(e.detail);
+      } else {
+        fetchMode();
+      }
+    };
+    window.addEventListener('modeChange', handleModeChange);
+    return () => window.removeEventListener('modeChange', handleModeChange);
   }, [statusFilter]);
 
   const handleCreatePo = async (e: React.FormEvent) => {
@@ -205,6 +226,37 @@ export const PurchaseOrdersPage: React.FC = () => {
       {error && (
         <div className="alert alert-danger" style={{ margin: '16px 0', padding: '12px 16px', background: '#fce8e6', color: '#c5221f', borderRadius: '8px', border: '1px solid #fad2cf' }}>
           ⚠️ {error}
+        </div>
+      )}
+
+      {/* Autonomous Mode Governance Notice */}
+      {isAutonomous && (
+        <div
+          className="alert"
+          style={{
+            margin: '16px 0',
+            padding: '14px 18px',
+            background: '#eff6ff',
+            color: '#1e40af',
+            borderRadius: '10px',
+            border: '1px solid #bfdbfe',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            flexWrap: 'wrap',
+            gap: 12,
+          }}
+        >
+          <div style={{ fontSize: '13px', lineHeight: 1.5, maxWidth: '780px' }}>
+            <strong>🤖 Autonomous Replenishment Guard Active:</strong> Stock reorder points and lead-times are continuously monitored. Replenishment orders are auto-drafted with deduplication and queued in <strong>AI Approvals (HITL)</strong> for your 1-click authorization.
+          </div>
+          <button
+            className="btn btn-primary btn-sm"
+            onClick={() => navigate('/recommendations')}
+            style={{ fontWeight: 700, whiteSpace: 'nowrap' }}
+          >
+            Review in AI Approvals →
+          </button>
         </div>
       )}
 

@@ -131,26 +131,23 @@ export const ProductsPage: React.FC = () => {
 
   const getCategoryAndIcon = (name: string) => {
     const n = name.toLowerCase();
-    if (n.includes('rice') || n.includes('atta') || n.includes('flour') || n.includes('dal')) {
-      return { category: 'grains', label: '🌾 Grains & Flours', icon: '🌾' };
+    if (n.includes('rice') || n.includes('atta') || n.includes('flour') || n.includes('dal') || n.includes('besan') || n.includes('maida') || n.includes('sooji') || n.includes('poha') || n.includes('rajma') || n.includes('chana') || n.includes('vermicelli')) {
+      return { category: 'grains', label: '🌾 Grains & Pulses', icon: '🌾' };
     }
-    if (n.includes('tea') || n.includes('salt') || n.includes('sugar') || n.includes('turmeric')) {
+    if (n.includes('tea') || n.includes('salt') || n.includes('sugar') || n.includes('turmeric') || n.includes('spice') || n.includes('masala') || n.includes('chilli') || n.includes('coffee') || n.includes('jaggery') || n.includes('jeera') || n.includes('hing') || n.includes('mustard seeds')) {
       return { category: 'pantry', label: '🫖 Tea & Spices', icon: '🫖' };
     }
-    if (n.includes('milk') || n.includes('dairy')) {
-      return { category: 'dairy', label: '🥛 Dairy', icon: '🥛' };
+    if (n.includes('milk') || n.includes('dairy') || n.includes('curd') || n.includes('dahi') || n.includes('paneer') || n.includes('butter') || n.includes('cheese') || n.includes('egg')) {
+      return { category: 'dairy', label: '🥛 Dairy & Eggs', icon: '🥛' };
     }
     if (n.includes('oil') || n.includes('ghee')) {
-      return { category: 'oils', label: '🥫 Cooking Oils', icon: '🥫' };
+      return { category: 'oils', label: '🥫 Cooking Oils & Ghee', icon: '🥫' };
     }
-    if (n.includes('soap') || n.includes('detergent') || n.includes('toothpaste')) {
-      return { category: 'hygiene', label: '🧼 Household', icon: '🧼' };
+    if (n.includes('soap') || n.includes('detergent') || n.includes('toothpaste') || n.includes('cleaner') || n.includes('harpic') || n.includes('lizol') || n.includes('vim') || n.includes('rin') || n.includes('surf') || n.includes('tide') || n.includes('colgate') || n.includes('dettol') || n.includes('lifebuoy')) {
+      return { category: 'hygiene', label: '🧼 Household & Care', icon: '🧼' };
     }
-    if (n.includes('onion') || n.includes('potato')) {
-      return { category: 'produce', label: '🥔 Farm Fresh', icon: '🥔' };
-    }
-    if (n.includes('noodles')) {
-      return { category: 'snacks', label: '🍜 Instant Snacks', icon: '🍜' };
+    if (n.includes('biscuit') || n.includes('cookie') || n.includes('maggi') || n.includes('noodles') || n.includes('bhujia') || n.includes('namkeen') || n.includes('chips') || n.includes('snack') || n.includes('kurkure') || n.includes('lays') || n.includes('oreo') || n.includes('parle') || n.includes('britannia') || n.includes('dark fantasy') || n.includes('yippee')) {
+      return { category: 'snacks', label: '🍪 Biscuits & Snacks', icon: '🍪' };
     }
     return { category: 'other', label: '📦 General Grocery', icon: '📦' };
   };
@@ -158,11 +155,11 @@ export const ProductsPage: React.FC = () => {
   const categories = [
     { id: 'all', label: '✨ All Products' },
     { id: 'grains', label: '🌾 Grains & Pulses' },
-    { id: 'oils', label: '🥫 Cooking Oils' },
+    { id: 'oils', label: '🥫 Cooking Oils & Ghee' },
     { id: 'pantry', label: '🫖 Tea & Spices' },
-    { id: 'dairy', label: '🥛 Fresh Dairy' },
+    { id: 'dairy', label: '🥛 Fresh Dairy & Eggs' },
+    { id: 'snacks', label: '🍪 Biscuits & Snacks' },
     { id: 'hygiene', label: '🧼 Household & Care' },
-    { id: 'produce', label: '🥔 Farm Fresh' },
   ];
 
   const filtered = products.filter((p) => {

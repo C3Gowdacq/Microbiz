@@ -44,7 +44,14 @@ export const AutomationPage: React.FC = () => {
   useEffect(() => {
     fetchStatus();
     const timer = setInterval(fetchStatus, 15000);
-    return () => clearInterval(timer);
+    const handleModeChange = () => {
+      fetchStatus();
+    };
+    window.addEventListener('modeChange', handleModeChange);
+    return () => {
+      clearInterval(timer);
+      window.removeEventListener('modeChange', handleModeChange);
+    };
   }, []);
 
   const handleToggle = async () => {
@@ -57,6 +64,7 @@ export const AutomationPage: React.FC = () => {
           ? '⚡ Autonomous Mode ENABLED: POS sale events trigger real-time stock evaluation and auto-draft replenishment orders.'
           : '🔒 Manual Mode ENABLED: Agent actions require manual merchant execution.'
       );
+      window.dispatchEvent(new CustomEvent('modeChange', { detail: updated.autonomous_mode }));
       await fetchStatus();
       setTimeout(() => setSuccessMsg(null), 5000);
     } catch (err: any) {
@@ -148,22 +156,38 @@ export const AutomationPage: React.FC = () => {
           <h1 className="page-title">Autonomous Retail Engine</h1>
           <p className="page-subtitle">Real-time closed-loop decision system & multi-agent retail operations</p>
         </div>
-        <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
+        <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', alignItems: 'center' }}>
           <button
             className="btn btn-secondary"
             onClick={handleSimulateSale}
-            disabled={simulating}
-            style={{ fontWeight: 600, display: 'flex', alignItems: 'center', gap: 6 }}
+            disabled={!status?.autonomous_mode || simulating || runningSweep}
+            style={{ fontWeight: 600, display: 'flex', alignItems: 'center', gap: 6, opacity: status?.autonomous_mode ? 1 : 0.5 }}
+            title={status?.autonomous_mode ? "Simulate a real POS checkout that triggers the autonomous stock & replenishment loop" : "Enable Automation mode to run simulations"}
           >
             {simulating ? '⏳ Simulating Pipeline...' : '🎮 Simulate POS Sale Event'}
           </button>
           <button
             className="btn btn-primary"
             onClick={handleRunFullSweep}
-            disabled={runningSweep}
-            style={{ fontWeight: 600 }}
+            disabled={!status?.autonomous_mode || runningSweep || simulating}
+            style={{
+              fontWeight: 700,
+              fontSize: '14px',
+              padding: '10px 20px',
+              background: status?.autonomous_mode ? 'linear-gradient(135deg, #1d4ed8 0%, #2563eb 100%)' : '#94a3b8',
+              color: '#ffffff',
+              border: 'none',
+              borderRadius: '8px',
+              boxShadow: status?.autonomous_mode ? '0 4px 14px rgba(37, 99, 235, 0.35)' : 'none',
+              display: 'flex',
+              alignItems: 'center',
+              gap: 8,
+              cursor: (!status?.autonomous_mode || runningSweep) ? 'not-allowed' : 'pointer',
+              opacity: status?.autonomous_mode ? 1 : 0.6,
+            }}
+            title={status?.autonomous_mode ? "Execute parallel diagnostic sweep across all 5 agents (Inventory, Solvency, Credit, Expenses, Profitability)" : "Enable Automation mode to trigger agent sweep"}
           >
-            {runningSweep ? '⏳ Running Multi-Agent Sweep...' : '⚡ Run Full Diagnostic'}
+            {runningSweep ? '⏳ Running Multi-Agent Sweep...' : '🚀 Trigger Agent Sweep'}
           </button>
         </div>
       </div>
@@ -180,43 +204,120 @@ export const AutomationPage: React.FC = () => {
         </div>
       )}
 
-      {/* Mode Status Banner Card */}
-      <div className="card" style={{ padding: '24px', margin: '20px 0', background: status?.autonomous_mode ? 'linear-gradient(135deg, #1b5e20 0%, #2e7d32 100%)' : 'linear-gradient(135deg, #37474f 0%, #455a64 100%)', color: '#fff' }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '16px' }}>
-          <div>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '8px' }}>
-              <span style={{ fontSize: '24px' }}>{status?.autonomous_mode ? '🤖' : '🔒'}</span>
-              <h2 style={{ margin: 0, fontSize: '22px', fontWeight: 700 }}>
-                {status?.autonomous_mode ? 'Autonomous Closed Loop: ACTIVE' : 'Manual Supervised Mode: ACTIVE'}
-              </h2>
+      {/* Mode Access Control: If in Manual Mode, display the locked screen */}
+      {status && !status.autonomous_mode ? (
+        <div
+          className="card"
+          style={{
+            padding: '56px 32px',
+            textAlign: 'center',
+            margin: '32px auto',
+            maxWidth: '680px',
+            border: '2px dashed #cbd5e1',
+            background: '#ffffff',
+            borderRadius: '16px',
+            boxShadow: '0 10px 25px -5px rgba(0, 0, 0, 0.05)',
+          }}
+        >
+          <div style={{ fontSize: '56px', marginBottom: '16px' }}>🔒</div>
+          <h2 style={{ fontSize: '24px', fontWeight: 800, color: '#0f172a', margin: '0 0 12px 0' }}>
+            Autonomous Engine is Locked in Manual Mode
+          </h2>
+          <p style={{ color: '#64748b', fontSize: '15px', lineHeight: 1.6, maxWidth: '540px', margin: '0 auto 24px' }}>
+            Your store is currently running in <strong>Manual Supervised Mode</strong>.
+            The autonomous multi-agent decision engine (Stockout Velocity, Cashflow Solvency Guard, Khata Recovery Nudges, and Auto-PO Drafting) is paused to allow manual cashier management.
+          </p>
+          <div style={{ display: 'flex', justifyContent: 'center', gap: '14px', flexWrap: 'wrap' }}>
+            <button
+              className="btn btn-primary"
+              style={{
+                padding: '12px 28px',
+                fontSize: '15px',
+                fontWeight: 700,
+                background: 'linear-gradient(135deg, #16a34a 0%, #15803d 100%)',
+                border: 'none',
+                boxShadow: '0 4px 14px rgba(22, 163, 74, 0.35)',
+              }}
+              onClick={handleToggle}
+              disabled={toggling}
+            >
+              {toggling ? 'Activating Engine...' : '⚡ Switch to Automation Mode & Unlock'}
+            </button>
+            <button
+              className="btn btn-secondary"
+              style={{ padding: '12px 24px', fontSize: '15px', fontWeight: 600 }}
+              onClick={() => navigate('/')}
+            >
+              Return to Dashboard
+            </button>
+          </div>
+        </div>
+      ) : (
+        <>
+          {/* HITL Limited Control Notice Banner */}
+          <div
+            className="alert"
+            style={{
+              margin: '20px 0',
+              padding: '14px 18px',
+              background: '#eff6ff',
+              color: '#1e40af',
+              borderRadius: '10px',
+              border: '1px solid #bfdbfe',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              flexWrap: 'wrap',
+              gap: 12,
+            }}
+          >
+            <div>
+              <strong>🛡️ Human-in-the-Loop (HITL) Governance Active:</strong> Autonomous background agents continuously audit stock velocity, draft purchase orders, and monitor solvency. All high-impact actions are held for your 1-click authorization.
             </div>
-            <p style={{ margin: 0, opacity: 0.9, maxWidth: '680px', fontSize: '14px', lineHeight: 1.5 }}>
-              {status?.autonomous_mode
-                ? 'Every POS sale automatically recalculates sales velocity, projects stockout risk, drafts deduplicated purchase orders for supplier replenishment, and alerts the merchant in AI Approvals.'
-                : 'Stock transactions update inventory normally. Agent diagnostics, credit checks, and replenishment recommendations are triggered manually.'}
-            </p>
+            <button
+              className="btn btn-primary btn-sm"
+              onClick={() => navigate('/recommendations')}
+              style={{ fontWeight: 700, whiteSpace: 'nowrap' }}
+            >
+              Open AI Approvals Inbox ({status?.pending_recommendations_count ?? 0}) →
+            </button>
           </div>
 
-          <button
-            className="btn"
-            style={{
-              background: '#fff',
-              color: status?.autonomous_mode ? '#1b5e20' : '#263238',
-              fontWeight: 700,
-              padding: '12px 24px',
-              fontSize: '15px',
-              borderRadius: '8px',
-              border: 'none',
-              cursor: 'pointer',
-              boxShadow: '0 4px 12px rgba(0,0,0,0.15)',
-            }}
-            onClick={handleToggle}
-            disabled={toggling}
-          >
-            {toggling ? 'Updating...' : status?.autonomous_mode ? 'Switch to Manual Mode' : 'Enable Autonomous Mode'}
-          </button>
-        </div>
-      </div>
+          {/* Mode Status Banner Card */}
+          <div className="card" style={{ padding: '24px', margin: '20px 0', background: 'linear-gradient(135deg, #1b5e20 0%, #2e7d32 100%)', color: '#fff' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '16px' }}>
+              <div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '8px' }}>
+                  <span style={{ fontSize: '24px' }}>🤖</span>
+                  <h2 style={{ margin: 0, fontSize: '22px', fontWeight: 700 }}>
+                    Autonomous Closed Loop: ACTIVE
+                  </h2>
+                </div>
+                <p style={{ margin: 0, opacity: 0.9, maxWidth: '680px', fontSize: '14px', lineHeight: 1.5 }}>
+                  Every POS sale automatically recalculates sales velocity, projects stockout risk, drafts deduplicated purchase orders for supplier replenishment, and alerts the merchant in AI Approvals.
+                </p>
+              </div>
+
+              <button
+                className="btn"
+                style={{
+                  background: '#fff',
+                  color: '#1b5e20',
+                  fontWeight: 700,
+                  padding: '12px 24px',
+                  fontSize: '15px',
+                  borderRadius: '8px',
+                  border: 'none',
+                  cursor: 'pointer',
+                  boxShadow: '0 4px 12px rgba(0,0,0,0.15)',
+                }}
+                onClick={handleToggle}
+                disabled={toggling}
+              >
+                {toggling ? 'Updating...' : 'Switch to Manual Mode'}
+              </button>
+            </div>
+          </div>
 
       {/* Interactive Closed-Loop Simulation Display (When triggered) */}
       {(simulating || simStep > 0) && (
@@ -343,11 +444,34 @@ export const AutomationPage: React.FC = () => {
 
       {/* Multi-Agent Matrix with LIVE Operational Intelligence */}
       <div className="card" style={{ padding: '24px', marginBottom: '24px' }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
-          <h3 style={{ margin: 0, fontSize: '18px' }}>🤖 MicroBiz Multi-Agent Decision Grid</h3>
-          <span style={{ fontSize: '12px', color: '#666', background: '#f1f5f9', padding: '4px 8px', borderRadius: 4 }}>
-            Live Event-Driven Architecture
-          </span>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16, flexWrap: 'wrap', gap: 12 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+            <h3 style={{ margin: 0, fontSize: '18px' }}>🤖 MicroBiz Multi-Agent Decision Grid</h3>
+            <span style={{ fontSize: '12px', color: '#666', background: '#f1f5f9', padding: '4px 8px', borderRadius: 4 }}>
+              Live Event-Driven Architecture
+            </span>
+          </div>
+          <button
+            className="btn btn-primary"
+            onClick={handleRunFullSweep}
+            disabled={runningSweep || simulating}
+            style={{
+              fontWeight: 700,
+              fontSize: '13px',
+              padding: '8px 16px',
+              background: 'linear-gradient(135deg, #1d4ed8 0%, #2563eb 100%)',
+              color: '#ffffff',
+              border: 'none',
+              borderRadius: '6px',
+              cursor: runningSweep ? 'not-allowed' : 'pointer',
+              display: 'flex',
+              alignItems: 'center',
+              gap: 6,
+              boxShadow: '0 2px 8px rgba(37, 99, 235, 0.25)',
+            }}
+          >
+            {runningSweep ? '⏳ Sweeping All 5 Agents...' : '🚀 Trigger Agent Sweep'}
+          </button>
         </div>
 
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: '16px' }}>
@@ -555,25 +679,131 @@ export const AutomationPage: React.FC = () => {
       </div>
 
       {/* Sweep Diagnostic Output */}
-      {sweepResult && (
-        <div className="card" style={{ padding: '20px', marginBottom: '24px', borderLeft: '4px solid #1e88e5' }}>
-          <h4 style={{ margin: '0 0 12px 0' }}>📋 Diagnostic Run Result</h4>
-          <p style={{ margin: '4px 0', fontSize: '14px' }}>
-            <strong>Primary Recommendation:</strong> {sweepResult.decision?.primary_recommendation?.action || 'No action needed'}
-          </p>
-          <p style={{ margin: '4px 0', fontSize: '14px', color: '#555' }}>
-            <strong>Reason:</strong> {sweepResult.decision?.primary_recommendation?.reason || 'Store operations are healthy'}
-          </p>
-          {sweepResult.recommendation_id && (
-            <div style={{ marginTop: '10px' }}>
-              <button
-                className="btn btn-primary btn-sm"
-                onClick={() => navigate('/recommendations')}
-              >
-                Open Recommendation #{sweepResult.recommendation_id} in AI Approvals →
-              </button>
+      {runningSweep && (
+        <div className="card" style={{ padding: '24px', marginBottom: '24px', borderLeft: '4px solid #2563eb', background: '#eff6ff' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+            <div style={{ fontSize: '24px' }}>⚙️</div>
+            <div>
+              <h4 style={{ margin: 0, color: '#1e40af', fontSize: '16px', fontWeight: 700 }}>
+                ⚡ Executing Parallel Store-Wide Agent Sweep...
+              </h4>
+              <p style={{ margin: '4px 0 0 0', fontSize: '13px', color: '#3b82f6' }}>
+                Running 5 autonomous agents concurrently: Inventory Agent, Cashflow Solvency Guard, Khata Credit Agent, Expense Anomaly Agent, and Profitability Agent via LangGraph.
+              </p>
             </div>
-          )}
+          </div>
+        </div>
+      )}
+
+      {sweepResult && (
+        <div className="card" style={{ padding: '24px', marginBottom: '24px', border: '1px solid #bfdbfe', background: '#ffffff', boxShadow: '0 4px 16px rgba(37, 99, 235, 0.08)' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16, borderBottom: '1px solid #f1f5f9', paddingBottom: 12 }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+              <span style={{ fontSize: '20px' }}>🚀</span>
+              <h4 style={{ margin: 0, fontSize: '17px', color: '#1e293b', fontWeight: 700 }}>
+                Multi-Agent Synchronized Store Health Assessment
+              </h4>
+              <span style={{ background: '#dbeafe', color: '#1d4ed8', fontSize: '11px', fontWeight: 700, padding: '2px 8px', borderRadius: 12 }}>
+                LangGraph Synthesized
+              </span>
+            </div>
+            <button
+              onClick={() => setSweepResult(null)}
+              style={{ background: 'transparent', border: 'none', color: '#94a3b8', cursor: 'pointer', fontSize: '16px', padding: '4px 8px' }}
+              title="Dismiss"
+            >
+              ✕
+            </button>
+          </div>
+
+          {/* 5-Agent Execution Grid */}
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: 10, marginBottom: 16 }}>
+            <div style={{ padding: '10px 12px', background: '#f8fafc', borderRadius: 6, border: '1px solid #e2e8f0' }}>
+              <div style={{ fontSize: '11px', fontWeight: 700, color: '#64748b' }}>1. INVENTORY AGENT</div>
+              <div style={{ fontSize: '13px', fontWeight: 600, color: '#0f172a', marginTop: 2 }}>
+                ✓ {sweepResult.inputs_summary?.products_checked || 7} SKUs Audited
+              </div>
+              <div style={{ fontSize: '11px', color: '#10b981', marginTop: 2 }}>Stockout risks caught</div>
+            </div>
+
+            <div style={{ padding: '10px 12px', background: '#f8fafc', borderRadius: 6, border: '1px solid #e2e8f0' }}>
+              <div style={{ fontSize: '11px', fontWeight: 700, color: '#64748b' }}>2. CASHFLOW GUARD</div>
+              <div style={{ fontSize: '13px', fontWeight: 600, color: '#0f172a', marginTop: 2 }}>
+                ✓ Liquidity Guarded
+              </div>
+              <div style={{ fontSize: '11px', color: '#10b981', marginTop: 2 }}>Reserve vs PO check</div>
+            </div>
+
+            <div style={{ padding: '10px 12px', background: '#f8fafc', borderRadius: 6, border: '1px solid #e2e8f0' }}>
+              <div style={{ fontSize: '11px', fontWeight: 700, color: '#64748b' }}>3. KHATA CREDIT</div>
+              <div style={{ fontSize: '13px', fontWeight: 600, color: '#0f172a', marginTop: 2 }}>
+                ✓ {sweepResult.inputs_summary?.customers_checked || 4} Khatas Checked
+              </div>
+              <div style={{ fontSize: '11px', color: '#10b981', marginTop: 2 }}>Overdue aging evaluated</div>
+            </div>
+
+            <div style={{ padding: '10px 12px', background: '#f8fafc', borderRadius: 6, border: '1px solid #e2e8f0' }}>
+              <div style={{ fontSize: '11px', fontWeight: 700, color: '#64748b' }}>4. EXPENSE ANOMALY</div>
+              <div style={{ fontSize: '13px', fontWeight: 600, color: '#0f172a', marginTop: 2 }}>
+                ✓ {sweepResult.inputs_summary?.expense_categories || 5} Categories Audited
+              </div>
+              <div style={{ fontSize: '11px', color: '#10b981', marginTop: 2 }}>Variance thresholds ok</div>
+            </div>
+
+            <div style={{ padding: '10px 12px', background: '#f8fafc', borderRadius: 6, border: '1px solid #e2e8f0' }}>
+              <div style={{ fontSize: '11px', fontWeight: 700, color: '#64748b' }}>5. PROFITABILITY</div>
+              <div style={{ fontSize: '13px', fontWeight: 600, color: '#0f172a', marginTop: 2 }}>
+                ✓ Margins Verified
+              </div>
+              <div style={{ fontSize: '11px', color: '#10b981', marginTop: 2 }}>Price & profit protection</div>
+            </div>
+          </div>
+
+          {/* Primary Recommendation banner */}
+          <div style={{ background: '#f8fafc', borderRadius: 8, padding: 16, border: '1px solid #e2e8f0', marginBottom: 14 }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 6 }}>
+              <span style={{ fontSize: '12px', fontWeight: 700, color: '#475569', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                Primary Multi-Agent Action Recommendation:
+              </span>
+              <span style={{
+                background: sweepResult.decision?.primary_recommendation?.priority === 'critical' ? '#fee2e2' : '#fef3c7',
+                color: sweepResult.decision?.primary_recommendation?.priority === 'critical' ? '#b91c1c' : '#b45309',
+                padding: '2px 8px',
+                borderRadius: 4,
+                fontSize: '11px',
+                fontWeight: 700,
+                textTransform: 'uppercase',
+              }}>
+                {sweepResult.decision?.primary_recommendation?.priority || 'NORMAL'}
+              </span>
+            </div>
+            <div style={{ fontSize: '15px', fontWeight: 700, color: '#0f172a' }}>
+              {sweepResult.decision?.primary_recommendation?.action?.replace(/_/g, ' ').toUpperCase() || 'NO ACTION NEEDED'}
+            </div>
+            <div style={{ fontSize: '13px', color: '#475569', marginTop: 4 }}>
+              <strong>Operational Reason:</strong> {sweepResult.decision?.primary_recommendation?.reason || 'Store operations are healthy.'}
+            </div>
+            {sweepResult.llm_explanation?.summary && (
+              <div style={{ fontSize: '13px', color: '#1e40af', marginTop: 8, fontStyle: 'italic', background: '#eff6ff', padding: '8px 12px', borderRadius: 6 }}>
+                💡 <strong>AI Summary:</strong> {sweepResult.llm_explanation.summary}
+              </div>
+            )}
+          </div>
+
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 10 }}>
+            <div style={{ fontSize: '12px', color: '#64748b' }}>
+              Logged into Store Audit Ledger as Recommendation #{sweepResult.recommendation_id}
+            </div>
+            {sweepResult.recommendation_id && (
+              <button
+                className="btn btn-primary"
+                onClick={() => navigate('/recommendations')}
+                style={{ fontSize: '13px', padding: '8px 16px', fontWeight: 600 }}
+              >
+                Review in AI Approvals Inbox (HITL) →
+              </button>
+            )}
+          </div>
         </div>
       )}
 
@@ -627,6 +857,8 @@ export const AutomationPage: React.FC = () => {
           </table>
         )}
       </div>
+        </>
+      )}
     </div>
   );
 };

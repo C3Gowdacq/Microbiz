@@ -125,36 +125,80 @@ def send_sms_or_whatsapp(
                 "body": message_body,
             }
 
-        if is_whatsapp and whatsapp_from:
-            wa_to = f"whatsapp:{target_phone}" if not target_phone.startswith("whatsapp:") else target_phone
-            wa_from = f"whatsapp:{whatsapp_from}" if not whatsapp_from.startswith("whatsapp:") else whatsapp_from
-            msg = client.messages.create(
-                body=message_body,
-                from_=wa_from,
-                to=wa_to,
-            )
-        else:
-            if not from_number:
+        prefer_whatsapp = is_whatsapp or os.getenv("TWILIO_PREFER_WHATSAPP", "").strip().lower() in ("true", "1", "yes")
+
+        # Try WhatsApp first if preferred and configured
+        if prefer_whatsapp and whatsapp_from:
+            try:
+                wa_to = f"whatsapp:{target_phone}" if not target_phone.startswith("whatsapp:") else target_phone
+                wa_from = f"whatsapp:{whatsapp_from}" if not whatsapp_from.startswith("whatsapp:") else whatsapp_from
+                msg = client.messages.create(
+                    body=message_body,
+                    from_=wa_from,
+                    to=wa_to,
+                )
+                logger.info(f"[TWILIO WHATSAPP SUCCESS] SID {msg.sid} dispatched to {target_phone}")
                 return {
-                    "status": "error",
-                    "detail": "TWILIO_PHONE_NUMBER not configured in .env",
+                    "status": "sent",
+                    "channel": "whatsapp",
+                    "sid": msg.sid,
                     "to": target_phone,
                     "body": message_body,
+                    "simulated": False,
                 }
+            except Exception as wa_exc:
+                logger.warning(f"[TWILIO WHATSAPP ERROR] WhatsApp attempt failed: {wa_exc}. Trying SMS if possible.")
+
+        # Standard SMS delivery
+        if not from_number:
+            return {
+                "status": "error",
+                "detail": "TWILIO_PHONE_NUMBER not configured in .env",
+                "to": target_phone,
+                "body": message_body,
+            }
+
+        try:
             msg = client.messages.create(
                 body=message_body,
                 from_=from_number,
                 to=target_phone,
             )
+            logger.info(f"[TWILIO SMS SUCCESS] Message SID {msg.sid} dispatched to {target_phone}")
+            return {
+                "status": "sent",
+                "channel": "sms",
+                "sid": msg.sid,
+                "to": target_phone,
+                "body": message_body,
+                "simulated": False,
+            }
+        except Exception as sms_exc:
+            # If SMS fails due to template restrictions, and WhatsApp is available, fallback to WhatsApp
+            sms_err = str(sms_exc)
+            if "template" in sms_err.lower() and whatsapp_from:
+                logger.info("[TWILIO AUTO-FALLBACK] SMS restricted by trial template. Retrying via WhatsApp...")
+                try:
+                    wa_to = f"whatsapp:{target_phone}" if not target_phone.startswith("whatsapp:") else target_phone
+                    wa_from = f"whatsapp:{whatsapp_from}" if not whatsapp_from.startswith("whatsapp:") else whatsapp_from
+                    msg = client.messages.create(
+                        body=message_body,
+                        from_=wa_from,
+                        to=wa_to,
+                    )
+                    logger.info(f"[TWILIO WHATSAPP SUCCESS via Fallback] SID {msg.sid} dispatched to {target_phone}")
+                    return {
+                        "status": "sent",
+                        "channel": "whatsapp",
+                        "sid": msg.sid,
+                        "to": target_phone,
+                        "body": message_body,
+                        "simulated": False,
+                    }
+                except Exception as wa_fallback_exc:
+                    logger.error(f"[TWILIO WHATSAPP FALLBACK ERROR] {wa_fallback_exc}")
 
-        logger.info(f"[TWILIO SUCCESS] Message SID {msg.sid} dispatched to {target_phone}")
-        return {
-            "status": "sent",
-            "sid": msg.sid,
-            "to": target_phone,
-            "body": message_body,
-            "simulated": False,
-        }
+            raise sms_exc
 
     except Exception as exc:
         err_msg = str(exc)
@@ -165,3 +209,4 @@ def send_sms_or_whatsapp(
             "to": target_phone,
             "body": message_body,
         }
+
