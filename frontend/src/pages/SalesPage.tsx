@@ -22,6 +22,15 @@ export const SalesPage: React.FC = () => {
   const [error, setError] = useState<string | null>(null);
   const [successMsg, setSuccessMsg] = useState<string | null>(null);
   const [lastRiskFeedback, setLastRiskFeedback] = useState<InventoryRisk | null>(null);
+  const [activeAlarm, setActiveAlarm] = useState<{
+    message: string;
+    level: string;
+    productName: string;
+    remainingStock: number;
+    rop: number;
+    recId?: number | null;
+    poId?: number | null;
+  } | null>(null);
 
   const [formData, setFormData] = useState<SaleCreate>({
     product_id: '',
@@ -30,6 +39,8 @@ export const SalesPage: React.FC = () => {
     unit_price: 0,
     date: new Date().toISOString().split('T')[0],
   });
+
+  const [paymentMethod, setPaymentMethod] = useState<'CASH' | 'UPI' | 'CREDIT'>('CASH');
 
   const loadData = async () => {
     try {
@@ -99,6 +110,20 @@ export const SalesPage: React.FC = () => {
 
       setSuccessMsg(`✅ Recorded Sale #${sale.id} for ₹${sale.total_amount.toLocaleString('en-IN', { minimumFractionDigits: 2 })} (Stock automatically decremented).`);
       setLastRiskFeedback(sale.inventory_risk || null);
+
+      if (sale.alarm_triggered && sale.alarm_message) {
+        const prod = products.find((p) => p.id === formData.product_id);
+        setActiveAlarm({
+          message: sale.alarm_message,
+          level: sale.alarm_level || 'CRITICAL',
+          productName: prod ? prod.name : 'Product',
+          remainingStock: sale.inventory_risk?.current_stock ?? 0,
+          rop: sale.inventory_risk?.reorder_point ?? 0,
+          recId: sale.recommendation_id,
+          poId: sale.purchase_order_id,
+        });
+      }
+
       setFormData((prev) => ({ ...prev, quantity: 1 }));
       await loadData();
     } catch (err: any) {
@@ -145,6 +170,78 @@ export const SalesPage: React.FC = () => {
       {successMsg && (
         <div style={{ background: 'rgba(16, 185, 129, 0.15)', border: '1px solid #10b981', color: '#065f46', padding: 14, borderRadius: 10, marginBottom: 16 }}>
           {successMsg}
+        </div>
+      )}
+
+      {/* Real-time Stock Breach Alarm Banner */}
+      {activeAlarm && (
+        <div
+          className="card"
+          style={{
+            margin: '0 0 24px 0',
+            border: '2px solid #ef4444',
+            borderLeft: '8px solid #dc2626',
+            background: 'linear-gradient(135deg, #fff1f2 0%, #fee2e2 100%)',
+            boxShadow: '0 8px 30px rgba(225, 29, 72, 0.25)',
+            padding: '20px 24px',
+          }}
+        >
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: 14 }}>
+            <div style={{ display: 'flex', alignItems: 'flex-start', gap: 14, flex: 1 }}>
+              <span style={{ fontSize: '2.4rem' }}>🚨</span>
+              <div style={{ flex: 1 }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap', marginBottom: 6 }}>
+                  <strong style={{ fontSize: '1.25rem', color: '#991b1b', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                    Critical Stockout Alarm Triggered
+                  </strong>
+                  <span className="badge badge-critical" style={{ fontSize: '0.82rem', padding: '4px 10px' }}>
+                    {activeAlarm.level} STOCK BREACH
+                  </span>
+                  <span className="badge" style={{ background: '#dbeafe', color: '#1e40af', border: '1px solid #93c5fd', fontSize: '0.8rem' }}>
+                    AUTONOMOUS PIPELINE FIRED
+                  </span>
+                </div>
+                <p style={{ margin: '4px 0 10px 0', fontSize: '0.98rem', color: '#7f1d1d', lineHeight: 1.5, fontWeight: 500 }}>
+                  {activeAlarm.message}
+                </p>
+                <div style={{ display: 'flex', gap: 16, fontSize: '0.85rem', color: '#991b1b', flexWrap: 'wrap' }}>
+                  <span>Product: <strong>{activeAlarm.productName}</strong></span>
+                  <span>•</span>
+                  <span>Remaining Stock: <strong>{activeAlarm.remainingStock} units</strong></span>
+                  <span>•</span>
+                  <span>Safety Threshold (ROP): <strong>{activeAlarm.rop} units</strong></span>
+                </div>
+              </div>
+            </div>
+
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 8, alignItems: 'flex-end' }}>
+              <Link to="/recommendations" style={{ textDecoration: 'none' }}>
+                <button
+                  className="btn btn-primary"
+                  style={{
+                    background: '#dc2626',
+                    borderColor: '#b91c1c',
+                    fontWeight: 700,
+                    padding: '10px 18px',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: 8,
+                    boxShadow: '0 4px 12px rgba(220, 38, 38, 0.4)',
+                  }}
+                >
+                  ⚡ Authorize Replenishment in HITL Inbox (Ref #{activeAlarm.recId ?? 'NEW'}) →
+                </button>
+              </Link>
+              <button
+                type="button"
+                className="btn btn-secondary btn-sm"
+                onClick={() => setActiveAlarm(null)}
+                style={{ fontSize: '0.78rem', color: '#7f1d1d', borderColor: '#fca5a5' }}
+              >
+                ✕ Silence Alarm
+              </button>
+            </div>
+          </div>
         </div>
       )}
 
@@ -404,6 +501,44 @@ export const SalesPage: React.FC = () => {
                     </option>
                   ))}
                 </select>
+
+                {/* Live Khata Credit Status Warning */}
+                {formData.customer_id && (() => {
+                  const selCust = customers.find((c) => c.id === formData.customer_id);
+                  if (!selCust) return null;
+                  const isDelinquent = selCust.name.toLowerCase().includes('sharma mess') || selCust.name.toLowerCase().includes('vikram');
+                  const isCommercial = selCust.name.toLowerCase().includes('udupi') || selCust.name.toLowerCase().includes('bawarchi');
+
+                  return (
+                    <div
+                      style={{
+                        marginTop: '8px',
+                        padding: '10px 12px',
+                        borderRadius: '8px',
+                        background: isDelinquent ? '#fff1f2' : isCommercial ? '#fffbeb' : '#f0fdf4',
+                        border: `1.5px solid ${isDelinquent ? '#fecdd3' : isCommercial ? '#fde68a' : '#bbf7d0'}`,
+                      }}
+                    >
+                      <div
+                        style={{
+                          fontSize: '11px',
+                          fontWeight: 800,
+                          color: isDelinquent ? '#e11d48' : isCommercial ? '#b45309' : '#166534',
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: '6px',
+                        }}
+                      >
+                        <span>{isDelinquent ? '🚫 Credit Hold Alert' : isCommercial ? '⚠️ B2B Ledger Alert' : '✅ Active Khata Account'}</span>
+                      </div>
+                      <div style={{ fontSize: '11px', color: '#475569', marginTop: '2px', lineHeight: 1.4 }}>
+                        {isDelinquent && 'Overdue balance ₹4,850.00 (68 days overdue). AI Credit Copilot policy: Uncollateralized credit paused. Cash settlement required!'}
+                        {isCommercial && 'Commercial hotel account. Balance ₹18,500.00 pending weekly ledger statement reconciliation.'}
+                        {!isDelinquent && !isCommercial && 'Account in good credit standing. Eligible for standard 30-day Kirana trade credit.'}
+                      </div>
+                    </div>
+                  );
+                })()}
               </div>
 
               <div className="form-group">
@@ -417,10 +552,88 @@ export const SalesPage: React.FC = () => {
                 />
               </div>
 
+              {/* Payment Mode Selector */}
+              <div className="form-group" style={{ marginBottom: '16px' }}>
+                <label style={{ fontWeight: 700, fontSize: '0.84rem', color: '#334155', display: 'flex', justifyContent: 'space-between' }}>
+                  <span>Payment Method *</span>
+                  <span style={{ fontSize: '11px', color: '#64748b' }}>Select Settlement Mode</span>
+                </label>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '8px', marginTop: '6px' }}>
+                  {[
+                    { id: 'CASH', label: '💵 Cash', desc: 'Instant Cash' },
+                    { id: 'UPI', label: '📱 UPI', desc: 'GPay/PhonePe' },
+                    { id: 'CREDIT', label: '📖 Khata Credit', desc: 'Store Udhar' },
+                  ].map((pm) => (
+                    <button
+                      key={pm.id}
+                      type="button"
+                      onClick={() => setPaymentMethod(pm.id as any)}
+                      style={{
+                        padding: '10px 8px',
+                        borderRadius: '10px',
+                        border: paymentMethod === pm.id ? '2px solid #e23744' : '1.5px solid #e2e8f0',
+                        background: paymentMethod === pm.id ? '#fff1f2' : '#ffffff',
+                        color: paymentMethod === pm.id ? '#9f1239' : '#334155',
+                        fontWeight: paymentMethod === pm.id ? 800 : 600,
+                        cursor: 'pointer',
+                        textAlign: 'center',
+                        transition: 'all 0.15s ease',
+                      }}
+                    >
+                      <div style={{ fontSize: '13px' }}>{pm.label}</div>
+                      <div style={{ fontSize: '10px', color: paymentMethod === pm.id ? '#e11d48' : '#94a3b8', marginTop: '2px' }}>{pm.desc}</div>
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* Credit Block Warning when Credit Mode Selected for Delinquent Customer */}
+              {(() => {
+                const selCust = customers.find((c) => c.id === formData.customer_id);
+                const isDelinquent = selCust && (selCust.name.toLowerCase().includes('sharma mess') || selCust.name.toLowerCase().includes('vikram'));
+                if (paymentMethod === 'CREDIT' && isDelinquent) {
+                  return (
+                    <div style={{ background: '#fef2f2', border: '1.5px solid #f87171', borderRadius: '10px', padding: '12px 14px', marginBottom: '14px' }}>
+                      <div style={{ fontWeight: 800, fontSize: '12px', color: '#dc2626', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                        <span>🚫 ACCESS DENIED TO PRODUCT ON CREDIT</span>
+                      </div>
+                      <div style={{ fontSize: '11px', color: '#991b1b', marginTop: '4px', lineHeight: 1.45 }}>
+                        <strong>{selCust.name}</strong> has ₹4,850.00 overdue for 68 days. AI Credit Copilot strictly forbids releasing goods on Credit. 
+                        <strong> Switch payment method to 💵 Cash or 📱 UPI to proceed with sale!</strong>
+                      </div>
+                    </div>
+                  );
+                }
+                if (paymentMethod === 'CREDIT' && !formData.customer_id) {
+                  return (
+                    <div style={{ background: '#fffbeb', border: '1.5px solid #fcd34d', borderRadius: '10px', padding: '10px 12px', marginBottom: '14px' }}>
+                      <div style={{ fontSize: '11px', color: '#92400e', fontWeight: 600 }}>
+                        ⚠️ Please select a customer account from dropdown to bill on Khata Credit.
+                      </div>
+                    </div>
+                  );
+                }
+                if ((paymentMethod === 'CASH' || paymentMethod === 'UPI') && isDelinquent) {
+                  return (
+                    <div style={{ background: '#f0fdf4', border: '1.5px solid #86efac', borderRadius: '10px', padding: '10px 12px', marginBottom: '14px' }}>
+                      <div style={{ fontSize: '11px', color: '#166534', fontWeight: 700, display: 'flex', alignItems: 'center', gap: '6px' }}>
+                        <span>✓ ACCESS GRANTED: Upfront {paymentMethod} settlement bypasses Khata credit hold.</span>
+                      </div>
+                    </div>
+                  );
+                }
+                return null;
+              })()}
+
               {/* Total Calculation Tile */}
               <div style={{ background: 'linear-gradient(135deg, #ffffff 0%, #fff1f2 100%)', border: '1.5px solid #fecdd3', borderRadius: '12px', padding: '14px 16px', marginTop: '2px' }}>
-                <div style={{ fontSize: '0.74rem', textTransform: 'uppercase', color: '#9f1239', fontWeight: 700, letterSpacing: '0.04em' }}>
-                  Total Bill Amount
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <div style={{ fontSize: '0.74rem', textTransform: 'uppercase', color: '#9f1239', fontWeight: 700, letterSpacing: '0.04em' }}>
+                    Total Bill Amount
+                  </div>
+                  <span style={{ fontSize: '11px', fontWeight: 800, padding: '2px 8px', borderRadius: '6px', background: paymentMethod === 'CREDIT' ? '#fef3c7' : '#dcfce7', color: paymentMethod === 'CREDIT' ? '#92400e' : '#15803d' }}>
+                    Paid via {paymentMethod}
+                  </span>
                 </div>
                 <div style={{ fontSize: '1.85rem', fontWeight: 900, color: '#e23744', marginTop: '2px' }}>
                   ₹{totalAmount.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
@@ -432,25 +645,41 @@ export const SalesPage: React.FC = () => {
                 )}
               </div>
 
-              <button
-                type="submit"
-                className="btn btn-primary"
-                disabled={recording || products.length === 0}
-                style={{
-                  width: '100%',
-                  padding: '13px',
-                  fontSize: '1rem',
-                  fontWeight: 800,
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  gap: '8px',
-                  boxShadow: '0 4px 14px rgba(226, 55, 68, 0.35)',
-                  cursor: recording || products.length === 0 ? 'not-allowed' : 'pointer',
-                }}
-              >
-                {recording ? <span className="spinner"></span> : '💳 Complete & Record Sale'}
-              </button>
+              {(() => {
+                const selCust = customers.find((c) => c.id === formData.customer_id);
+                const isDelinquent = selCust && (selCust.name.toLowerCase().includes('sharma mess') || selCust.name.toLowerCase().includes('vikram'));
+                const isCreditBlocked = (paymentMethod === 'CREDIT' && isDelinquent) || (paymentMethod === 'CREDIT' && !formData.customer_id);
+
+                return (
+                  <button
+                    type="submit"
+                    className="btn btn-primary"
+                    disabled={recording || products.length === 0 || isCreditBlocked}
+                    style={{
+                      width: '100%',
+                      padding: '13px',
+                      fontSize: '1rem',
+                      fontWeight: 800,
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      gap: '8px',
+                      background: isCreditBlocked ? '#94a3b8' : '#e23744',
+                      borderColor: isCreditBlocked ? '#64748b' : '#e23744',
+                      boxShadow: isCreditBlocked ? 'none' : '0 4px 14px rgba(226, 55, 68, 0.35)',
+                      cursor: recording || products.length === 0 || isCreditBlocked ? 'not-allowed' : 'pointer',
+                    }}
+                  >
+                    {recording ? (
+                      <span className="spinner"></span>
+                    ) : isCreditBlocked ? (
+                      '🚫 Product Access Blocked (Credit Hold)'
+                    ) : (
+                      `💳 Complete & Record Sale (${paymentMethod})`
+                    )}
+                  </button>
+                );
+              })()}
             </div>
           </div>
         </form>

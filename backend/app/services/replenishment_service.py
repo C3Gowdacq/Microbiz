@@ -117,14 +117,60 @@ def evaluate_and_trigger_replenishment(
         }
     ]
 
+    # Find suitable wholesale supplier
+    from backend.app.models import Supplier, PurchaseOrder, PurchaseOrderItem
+    import random
+    supplier = db.query(Supplier).filter(Supplier.is_active == True).first()
+    supplier_id = supplier.id if supplier else None
+    supplier_name = supplier.name if supplier else "Primary APMC Wholesaler"
+
+    # Create Draft Purchase Order for autonomous pipeline
+    timestamp_str = datetime.now(timezone.utc).strftime("%Y%m%d")
+    po_num = f"PO-{timestamp_str}-{random.randint(1000, 9999)}"
+    po = PurchaseOrder(
+        po_number=po_num,
+        supplier_id=supplier_id,
+        status="DRAFT",
+        priority=priority.upper(),
+        total_amount=total_cost,
+        reason=f"Autonomous Replenishment for '{product.name}' ({risk_level} Stock Alert)",
+        created_at=datetime.now(timezone.utc),
+    )
+    db.add(po)
+    db.flush()
+
+    po_item = PurchaseOrderItem(
+        purchase_order_id=po.id,
+        product_id=product.id,
+        quantity=order_qty,
+        unit_cost=unit_cost,
+        total_cost=total_cost,
+    )
+    db.add(po_item)
+
+    llm_summary = (
+        f"Critical replenishment triggered: Restock {order_qty:.0f} units of '{product.name}' "
+        f"via {supplier_name} (Est. ₹{total_cost:,.2f})."
+    )
+    llm_reasoning = (
+        f"Live stock for '{product.name}' reached {metrics['current_stock']} units, breaching safety Reorder Point "
+        f"of {metrics['reorder_point']} units (~{cov_days_str} coverage remaining). Based on trained Random Forest "
+        f"7-day demand projections ({metrics['forecast_demand']} units), complete stockout is imminent in {cov_days_str}. "
+        f"AI has drafted Purchase Order #{po.po_number} honoring supplier lead time ({metrics['lead_time_days']} days). "
+        f"Awaiting shopkeeper 1-click HITL confirmation in AI Approvals to transmit order."
+    )
+
     rec = Recommendation(
         module="inventory",
         entity_type="product",
         entity_id=product.id,
+        purchase_order_id=po.id,
         primary_action=action,
         priority=priority,
         reason=reason,
         secondary_recommendations=secondary,
+        llm_summary=llm_summary,
+        llm_reasoning=llm_reasoning,
         status="pending",
         created_at=datetime.now(timezone.utc),
     )

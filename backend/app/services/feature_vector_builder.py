@@ -184,6 +184,19 @@ def build_feature_vector(product: Product, db: Session) -> np.ndarray:
 
 # ── Proportional Product-Level Forecasting ────────────────────────────────────
 
+_FORECAST_CACHE = {}
+_FORECAST_CACHE_TTL = 300.0  # 5 minutes in-memory cache
+
+def invalidate_forecast_cache(product_id: Optional[str] = None):
+    """Invalidate cached forecasts when inventory or sales change."""
+    global _FORECAST_CACHE
+    if product_id:
+        keys_to_del = [k for k in _FORECAST_CACHE if k.startswith(f"{product_id}:")]
+        for k in keys_to_del:
+            _FORECAST_CACHE.pop(k, None)
+    else:
+        _FORECAST_CACHE.clear()
+
 def forecast_product_demand(
     product: Product,
     db: Session,
@@ -191,20 +204,16 @@ def forecast_product_demand(
 ) -> dict:
     """
     Produce a product-level demand forecast using the trained RF model +
-    proportional allocation.
-
-    Returns dict:
-      {
-        "predicted_sales": float,     # product's predicted demand in revenue
-        "predicted_units": float,     # demand in units (revenue / selling_price)
-        "model_used": str,            # "random_forest" or "velocity_fallback"
-        "scaling_factor": float,      # RF uplift/decline factor vs historical baseline
-        "store_predicted_total": float,  # total store revenue predicted by RF
-        "store_historical_avg": float,   # historical daily avg for comparison
-      }
-
-    Falls back to simple velocity average if product lacks ML profile fields.
+    proportional allocation with a 5-minute memory cache.
     """
+    import time
+    cache_key = f"{product.id}:{horizon_days}"
+    now_ts = time.time()
+    if cache_key in _FORECAST_CACHE:
+        cached_ts, cached_val = _FORECAST_CACHE[cache_key]
+        if (now_ts - cached_ts) < _FORECAST_CACHE_TTL:
+            return cached_val
+
     from agents.sales_agent import get_multi_day_forecast
 
     # Check if product has ML fields
@@ -215,7 +224,7 @@ def forecast_product_demand(
         if (product.current_stock < product.reorder_level or predicted_units == 0.0) and product.reorder_level > 0:
             predicted_units = max(predicted_units, product.reorder_level * (horizon_days / 7.0))
         predicted_sales = predicted_units * product.selling_price
-        return {
+        res = {
             "predicted_sales": round(predicted_sales, 2),
             "predicted_units": round(predicted_units, 2),
             "model_used": "velocity_fallback",
@@ -223,6 +232,8 @@ def forecast_product_demand(
             "store_predicted_total": 0.0,
             "store_historical_avg": 0.0,
         }
+        _FORECAST_CACHE[cache_key] = (now_ts, res)
+        return res
 
     # Build real feature vector and call the RF model
     feature_vector = build_feature_vector(product, db)
@@ -254,16 +265,18 @@ def forecast_product_demand(
     if (product.current_stock < product.reorder_level or predicted_units == 0.0) and product.reorder_level > 0:
         predicted_units = max(predicted_units, product.reorder_level * (horizon_days / 7.0))
 
-    predicted_sales = predicted_units * product.selling_price
+    predicted_sales_revenue = predicted_units * (product.selling_price or 0.0)
 
-    return {
-        "predicted_sales": round(predicted_sales, 2),
+    res = {
+        "predicted_sales": round(predicted_sales_revenue, 2),
         "predicted_units": round(predicted_units, 2),
         "model_used": "random_forest",
         "scaling_factor": round(scaling_factor, 4),
         "store_predicted_total": round(store_predicted_total, 2),
         "store_historical_avg": round(store_avg_daily, 2),
     }
+    _FORECAST_CACHE[cache_key] = (now_ts, res)
+    return res
 
 
 def _compute_product_avg_daily_units(product_id: str, db: Session, days: int) -> float:

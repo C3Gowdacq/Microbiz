@@ -41,7 +41,7 @@ export const App: React.FC = () => {
             <Route path="/expenses" element={<ExpensesPage />} />
             <Route path="/recommendations" element={<RecommendationsPage />} />
             <Route path="/agent-graph" element={<AgentGraphPage />} />
-            <Route path="/simulation" element={<DigitalTwinPage />} />
+            <Route path="/simulation" element={<Navigate to="/agent-graph" replace />} />
             <Route path="/settings" element={<SettingsPage />} />
             <Route path="*" element={<Navigate to="/" replace />} />
           </Route>

@@ -45,6 +45,50 @@ def list_customers(db: Session = Depends(get_db)):
     return db.query(Customer).order_by(Customer.name).all()
 
 
+@router.get("/summaries/batch")
+def get_all_customer_summaries(db: Session = Depends(get_db)):
+    """Batch fetch balances, overdue days, and invoice counts for all customers in 1 query."""
+    customers = db.query(Customer).order_by(Customer.name).all()
+    invoices = db.query(Invoice).all()
+
+    inv_by_cust: dict = {}
+    for inv in invoices:
+        inv_by_cust.setdefault(inv.customer_id, []).append(inv)
+
+    today = date.today()
+    results = []
+    for c in customers:
+        cust_invs = inv_by_cust.get(c.id, [])
+        outstanding = sum(
+            (inv.invoice_amount - inv.amount_paid)
+            for inv in cust_invs
+            if inv.status in ("unpaid", "partially_paid")
+        )
+
+        days_overdue = None
+        for inv in sorted(cust_invs, key=lambda x: x.due_date if x.due_date else today):
+            if inv.status in ("unpaid", "partially_paid") and inv.due_date:
+                delta = (today - inv.due_date).days
+                if delta > 0:
+                    days_overdue = delta
+                    break
+
+        results.append({
+            "id": c.id,
+            "name": c.name,
+            "email": c.email,
+            "phone": c.phone,
+            "summary": {
+                "customer_id": c.id,
+                "customer_name": c.name,
+                "outstanding_balance": round(outstanding, 2),
+                "days_overdue": days_overdue,
+                "invoice_history": [{"invoice_id": i.id, "status": i.status} for i in cust_invs],
+            }
+        })
+    return results
+
+
 @router.get("/{customer_id}/summary", response_model=CustomerSummaryResponse)
 def get_customer_summary(customer_id: str, db: Session = Depends(get_db)):
     """
@@ -166,6 +210,7 @@ def send_customer_reminder(
         "phone": customer.phone,
         "channel": channel,
         "message": message_body,
+        "result": dispatch_res,
         "twilio_result": dispatch_res,
     }
 

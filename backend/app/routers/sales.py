@@ -81,19 +81,42 @@ def record_sale(req: SaleCreate, db: Session = Depends(get_db)):
         # Single atomic commit: stock decrement + inventory event + audit log + sale record
         db.commit()
         db.refresh(sale)
-        db.refresh(product)
+        # Invalidate cached forecast for this product so risk is recalculated with new stock
+        from backend.app.services.feature_vector_builder import invalidate_forecast_cache
+        invalidate_forecast_cache(product.id)
 
         # Phase 3 & 4: Calculate inventory risk on the updated stock
         risk_metrics = calculate_risk_metrics(product, db)
 
-        # Phase 4 & 5: Check autonomous mode
-        settings = db.query(BusinessSettings).filter(BusinessSettings.id == 1).first()
-        if settings and settings.autonomous_mode:
-            if risk_metrics["risk_level"] in ("CRITICAL", "HIGH") or risk_metrics["reorder_needed"]:
-                evaluate_and_trigger_replenishment(product.id, db)
+        alarm_triggered = False
+        alarm_msg = None
+        alarm_lvl = None
+        rec_id = None
+        po_id = None
 
-        # Attach inventory_risk to response
+        # Check for stockout breach alarm
+        if risk_metrics["risk_level"] in ("CRITICAL", "HIGH") or product.current_stock <= product.reorder_level:
+            alarm_triggered = True
+            alarm_lvl = risk_metrics["risk_level"]
+            rec, created = evaluate_and_trigger_replenishment(product.id, db, force=True)
+            if rec:
+                rec_id = rec.id
+                po_id = rec.purchase_order_id
+
+            cov_str = f"{risk_metrics['coverage_days']} days" if risk_metrics.get("coverage_days") is not None else "< 1 day"
+            alarm_msg = (
+                f"CRITICAL STOCK BREACH: Sale of {sale.quantity} units reduced '{product.name}' to {product.current_stock:.1f} units "
+                f"(below Reorder Point {risk_metrics['reorder_point']}, Coverage: {cov_str}). "
+                f"Autonomous pipeline drafted Purchase Order #{po_id or 'DRAFT'} and queued Recommendation #{rec_id} for your 1-click HITL approval."
+            )
+
+        # Attach inventory_risk and alarm telemetry to response
         sale.inventory_risk = risk_metrics
+        sale.alarm_triggered = alarm_triggered
+        sale.alarm_message = alarm_msg
+        sale.alarm_level = alarm_lvl
+        sale.recommendation_id = rec_id
+        sale.purchase_order_id = po_id
         return sale
 
     except HTTPException:

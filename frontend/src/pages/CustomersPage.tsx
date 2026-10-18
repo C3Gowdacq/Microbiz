@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import {
   getCustomers,
   getCustomerSummary,
+  getCustomerBatchSummaries,
   createCustomer,
   Customer,
   CustomerCreate,
@@ -33,21 +34,8 @@ export const CustomersPage: React.FC = () => {
     try {
       setLoading(true);
       setError(null);
-      const custList = await getCustomers();
-
-      // Fetch summaries in parallel for outstanding balances
-      const withSummaries = await Promise.all(
-        custList.map(async (c) => {
-          try {
-            const summary = await getCustomerSummary(c.id);
-            return { ...c, summary };
-          } catch {
-            return { ...c };
-          }
-        })
-      );
-
-      setCustomers(withSummaries);
+      const data = await getCustomerBatchSummaries();
+      setCustomers(data);
     } catch (err: any) {
       setError(err?.response?.data?.detail || err.message || 'Failed to load customers');
     } finally {

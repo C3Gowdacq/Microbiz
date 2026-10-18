@@ -118,6 +118,11 @@ export interface Sale {
   unit_price: number;
   total_amount: number;
   inventory_risk?: InventoryRisk | null;
+  alarm_triggered?: boolean;
+  alarm_message?: string | null;
+  alarm_level?: string | null;
+  recommendation_id?: number | null;
+  purchase_order_id?: number | null;
 }
 
 export interface SaleCreate {
@@ -406,6 +411,11 @@ export const getCustomerSummary = async (id: string): Promise<CustomerSummary> =
   return res.data;
 };
 
+export const getCustomerBatchSummaries = async (): Promise<Array<Customer & { summary: CustomerSummary }>> => {
+  const res = await api.get<Array<Customer & { summary: CustomerSummary }>>('/api/customers/summaries/batch');
+  return res.data;
+};
+
 export const checkCustomerCredit = async (id: string): Promise<CheckCreditResponse> => {
   const res = await api.post<CheckCreditResponse>(`/api/customers/${id}/check-credit`);
   return res.data;
@@ -416,6 +426,7 @@ export interface SendReminderResponse {
   customer_name: string;
   phone: string;
   channel: string;
+  message?: string;
   result: {
     status: string;
     sid?: string;
@@ -423,6 +434,7 @@ export interface SendReminderResponse {
     body?: string;
     detail?: string;
   };
+  twilio_result?: any;
 }
 
 export const sendCustomerReminder = async (
@@ -844,6 +856,8 @@ export interface StepTrace {
   input_summary: Record<string, any>;
   output_summary: Record<string, any>;
   decision_log: string;
+  what_happened?: string;
+  outcome?: string;
   arbitration_details?: Record<string, any> | null;
 }
 

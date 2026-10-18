@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react';
+import { Link } from 'react-router-dom';
 import {
   getRecommendations,
   approveRecommendation,
@@ -383,16 +384,23 @@ export const RecommendationsPage: React.FC = () => {
 
                 {/* Restock PO linkage notice */}
                 {isRestock && (
-                  <div className="rec-po-banner">
-                    <span style={{ fontSize: '1.3rem' }}>📦</span>
-                    <div>
-                      <strong style={{ display: 'block', color: '#065f46', marginBottom: '2px' }}>
-                        Autonomous Purchase Order Pipeline Ready
-                      </strong>
-                      <span style={{ color: '#047857' }}>
-                        Approving this recommendation creates and authorizes an immediate Purchase Order for supplier delivery.
-                      </span>
+                  <div className="rec-po-banner" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '10px' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                      <span style={{ fontSize: '1.3rem' }}>📦</span>
+                      <div>
+                        <strong style={{ display: 'block', color: '#065f46', marginBottom: '2px' }}>
+                          Autonomous Purchase Order Pipeline Ready
+                        </strong>
+                        <span style={{ color: '#047857' }}>
+                          Approving this recommendation creates and authorizes an immediate Purchase Order for supplier delivery.
+                        </span>
+                      </div>
                     </div>
+                    <Link to="/purchase-orders" style={{ textDecoration: 'none' }}>
+                      <button className="btn btn-sm btn-secondary" style={{ whiteSpace: 'nowrap', borderColor: '#a7f3d0', color: '#065f46' }}>
+                        View PO Register →
+                      </button>
+                    </Link>
                   </div>
                 )}
 
@@ -413,6 +421,29 @@ export const RecommendationsPage: React.FC = () => {
                     {rec.suggested_customer_message && (
                       <div className="rec-customer-msg">
                         <strong>Draft Communication:</strong> "{resolveNames(rec.suggested_customer_message)}"
+                        <div style={{ marginTop: '10px' }}>
+                          <a
+                            href={`https://api.whatsapp.com/send?text=${encodeURIComponent(resolveNames(rec.suggested_customer_message))}`}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="btn btn-sm"
+                            style={{
+                              background: '#25D366',
+                              color: '#ffffff',
+                              border: 'none',
+                              display: 'inline-flex',
+                              alignItems: 'center',
+                              gap: '6px',
+                              fontWeight: 700,
+                              textDecoration: 'none',
+                              padding: '6px 14px',
+                              borderRadius: '6px'
+                            }}
+                          >
+                            <span>📲</span>
+                            <span>Dispatch via WhatsApp Web</span>
+                          </a>
+                        </div>
                       </div>
                     )}
                   </div>

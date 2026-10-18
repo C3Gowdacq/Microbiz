@@ -44,6 +44,8 @@ class StepTrace(BaseModel):
     input_summary: Dict[str, Any]
     output_summary: Dict[str, Any]
     decision_log: str
+    what_happened: Optional[str] = None
+    outcome: Optional[str] = None
     arbitration_details: Optional[Dict[str, Any]] = None
 
 
@@ -165,6 +167,8 @@ def execute_graph_trace():
             input_summary={"store_type": "Supermarket A", "assortment": "Level A", "horizon_days": 7},
             output_summary={"predicted_store_demand": 384.5, "model": "RandomForestRegressor(n=100)"},
             decision_log="Generated 7-day store demand projection across 38 SKUs incorporating seasonal Kirana variance.",
+            what_happened="Aggregated historical daily transactions and sales velocity across 38 grocery items. Ingested seasonal trend indices and current weekend footfall surges to compute 7-day rolling consumption demand.",
+            outcome="Predicted total store demand of 384.5 units over the upcoming week with 94.2% statistical confidence, feeding expected demand rates directly into inventory replenishment models.",
         ),
         StepTrace(
             step_id=2,
@@ -175,6 +179,8 @@ def execute_graph_trace():
             input_summary={"products_scanned": 38, "low_stock_threshold": "ROP = d*L + SS"},
             output_summary={"critical_skus_count": 9, "total_proposed_po_cost": 84200.0},
             decision_log="Detected 9 products below dynamic reorder level. Formulated unconstrained purchase order batch totaling ₹84,200.",
+            what_happened="Scanned all 38 store items against dynamic safety stock and Reorder Points (ROP = d*L + SS). Found 9 high-demand items (e.g., Cooking Oil, Atta, Salt, Milk, Basmati Rice) at imminent risk of stockout.",
+            outcome="Drafted an unconstrained replenishment Purchase Order for all 9 low-stock items totaling ₹84,200, dispatching the capital request to the Cashflow Guardian for liquidity validation.",
         ),
         StepTrace(
             step_id=3,
@@ -182,12 +188,28 @@ def execute_graph_trace():
             node_name="Cashflow Guardian Node",
             status="conflict_veto",
             execution_time_ms=12.1,
-            input_summary={"current_cash": 563000.0, "min_reserve_floor": 50000.0, "upcoming_expenses": 38000.0},
-            output_summary={"proposed_disbursement": 84200.0, "reserve_breach_detected": True, "verdict": "VETO"},
+            input_summary={
+                "current_liquid_balance": 81500.0,
+                "mandatory_reserve_floor": 50000.0,
+                "proposed_po_outflow": 84200.0,
+            },
+            output_summary={
+                "projected_cash_without_veto": -2700.0,
+                "reserve_violation": True,
+                "verdict": "CONFLICT VETO",
+                "max_allowable_disbursement": 35000.0,
+            },
             decision_log="⚠️ VETO RAISED: Approving ₹84,200 PO drops liquidity near floor under lag receivables scenario. Raising conflict to State Reducer.",
+            what_happened="The Inventory Sentinel requested ₹84,200 to restock wholesale inventory. However, the store's current liquid cash is only ₹81,500 and policy mandates a strict ₹50,000 emergency liquid reserve floor (for shop rent, power, and supplier credit). Approving ₹84,200 would cause cash to crash to -₹2,700 (insolvency/deficit), triggering severe business risk.",
+            outcome="In 12.1 ms, Cashflow Guardian issued a CONFLICT VETO blocking the ₹84,200 outflow. It capped maximum allowable disbursement to ₹35,000 and escalated the dispute to the Pareto Conflict Arbitrator (State Reducer) to fund critical staples (Milk & Rice) at ₹31,500 while keeping the ₹50,000 emergency cash cushion 100% safe.",
             arbitration_details={
                 "veto_reason": "Cashflow constraint violation",
+                "current_cash_balance": 81500.0,
+                "proposed_disbursement": 84200.0,
+                "mandatory_safety_floor": 50000.0,
+                "projected_deficit_without_veto": -2700.0,
                 "maximum_allowable_disbursement": 35000.0,
+                "arbitrated_safe_target": 31500.0,
             },
         ),
         StepTrace(
@@ -199,6 +221,8 @@ def execute_graph_trace():
             input_summary={"active_accounts": 10, "overdue_debtors": 6},
             output_summary={"total_overdue": 37200.0, "high_risk_customers": 2, "reminders_drafted": 3},
             decision_log="Scanned khata ledger. Prepared polite WhatsApp/SMS payment reminders for Ramesh Kumar and Sunita Rao.",
+            what_happened="Audited 10 B2B and regular customer Khata credit ledgers. Identified 6 overdue balances totaling ₹37,200 with 2 high-risk accounts (e.g., Udupi Sagar Hotel, Ramesh Kumar).",
+            outcome="Drafted automated, polite multilingual WhatsApp/SMS payment reminders to accelerate receivables inflow and restore shop cash reserves without damaging customer goodwill.",
         ),
         StepTrace(
             step_id=5,
@@ -209,6 +233,8 @@ def execute_graph_trace():
             input_summary={"categories_audited": 7, "current_burn": 38000.0},
             output_summary={"anomalies_detected": 0, "variance_trend": "stable (+2.1%)"},
             decision_log="Audited electricity and logistics overheads against prior period baselines. No budget leakage detected.",
+            what_happened="Audited recurring fixed and operating overheads across 7 store cost categories (electricity, logistics, staff salaries, packaging).",
+            outcome="Verified monthly burn rate is stable at ₹38,000 (+2.1% variance), confirming no budgetary leaks or abnormal overhead drains.",
         ),
         StepTrace(
             step_id=6,
@@ -219,6 +245,8 @@ def execute_graph_trace():
             input_summary={"skus_evaluated": 9, "min_margin_threshold": "10.0%"},
             output_summary={"healthy_margin_items": 7, "low_margin_items": 2},
             decision_log="Classified Fortune Oil (14.2% margin) and Aashirvaad Atta (12.2% margin) as top priority restock items.",
+            what_happened="Ranked all 9 replenishment items by gross profit margin and sales turnover velocity to determine capital allocation priority during capital rationing.",
+            outcome="Flagged Fortune Oil (14.2% margin) and Aashirvaad Atta (12.2% margin) as high-yield priority restocks, while marking bulky low-margin SKUs for deferral.",
         ),
         StepTrace(
             step_id=7,
@@ -232,9 +260,11 @@ def execute_graph_trace():
                 "arbitrated_order_cost": 31500.0,
                 "skus_approved": ["Fortune Sunflower Oil", "Aashirvaad Atta", "Tata Salt"],
                 "skus_deferred": ["Non-essential bulk packaging", "Low velocity biscuits"],
-                "protected_cash_reserve": 531500.0,
+                "protected_cash_reserve": 50000.0,
             },
             decision_log="🤝 PARETO COMPROMISE REACHED: Trimmed PO from ₹84,200 down to ₹31,500. Restocking high-velocity essentials only while preserving liquid reserves.",
+            what_happened="Resolved the direct contradiction between Inventory Sentinel (demanding ₹84,200) and Cashflow Guardian (enforcing ₹35,000 ceiling to protect ₹50,000 reserve floor).",
+            outcome="Executed Knapsack Pareto Multi-Objective Optimization. Pruned PO from ₹84,200 to ₹31,500, funding critical high-turnover staples (Milk, Oil, Atta, Salt) while eliminating stockout risk for essentials and leaving ₹50,000 in cash completely intact.",
             arbitration_details={
                 "arbitration_type": "Constrained Knapsack Pareto Optimization",
                 "liquidity_preserved": 52700.0,
@@ -250,6 +280,8 @@ def execute_graph_trace():
             input_summary={"arbitrated_plan_cost": 31500.0, "human_approval_threshold": 10000.0},
             output_summary={"approval_card_dispatched": True, "target": "Executive Dashboard Inbox"},
             decision_log="Arbitrated plan exceeds ₹10,000 threshold. Queued 1-click Approval Card for Shopkeeper confirmation.",
+            what_happened="The arbitrated PO of ₹31,500 exceeded the autonomous system delegation limit of ₹10,000, triggering mandatory Human-in-the-Loop oversight.",
+            outcome="Generated an actionable 1-click Approval Card on the merchant dashboard with full trade-off explanation, ensuring human merchant retains final control over store finances.",
         ),
     ]
 

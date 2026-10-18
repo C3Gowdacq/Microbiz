@@ -32,23 +32,7 @@ export const Layout: React.FC = () => {
     return () => window.removeEventListener('modeChange', handleModeChange);
   }, []);
 
-  // Strict route isolation between Autonomous Mode and Manual Mode
-  useEffect(() => {
-    const p = location.pathname;
-    if (isAutonomous) {
-      // In Autonomous Mode: disallow manual micro-management modules
-      const manualOnlyPrefixes = ['/products', '/customers', '/expenses', '/purchase-orders', '/forecasting', '/automation'];
-      if (manualOnlyPrefixes.some((prefix) => p === prefix || p.startsWith(prefix + '/'))) {
-        navigate('/', { replace: true });
-      }
-    } else {
-      // In Manual Mode: disallow autonomous agent engines
-      const autoOnlyRoutes = ['/agent-graph', '/simulation', '/recommendations'];
-      if (autoOnlyRoutes.some((route) => p === route || p.startsWith(route + '/'))) {
-        navigate('/', { replace: true });
-      }
-    }
-  }, [isAutonomous, location.pathname, navigate]);
+
 
   const initialLetter = merchant.name ? merchant.name.trim().charAt(0).toUpperCase() : 'M';
 

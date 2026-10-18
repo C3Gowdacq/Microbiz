@@ -72,8 +72,10 @@ def _record_agent_run_start(
     trigger: str,
     input_data: Optional[Dict[str, Any]],
     db: Session,
-) -> AgentRun:
-    """Record the beginning of an agent execution."""
+) -> Optional[AgentRun]:
+    """Record the beginning of an agent execution (skips unneeded rows during background loops)."""
+    if trigger == "autonomous_background_loop":
+        return None
     run = AgentRun(
         agent_name=agent_name,
         started_at=datetime.now(timezone.utc),
@@ -90,13 +92,15 @@ def _record_agent_run_start(
 
 
 def _record_agent_run_end(
-    run: AgentRun,
+    run: Optional[AgentRun],
     status: str,
     output_data: Optional[Dict[str, Any]],
     error: Optional[str],
     db: Session,
 ):
     """Update AgentRun with final outcome."""
+    if not run:
+        return
     run.status = status
     run.completed_at = datetime.now(timezone.utc)
     run.output_data = output_data

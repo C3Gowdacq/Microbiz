@@ -147,6 +147,11 @@ class SaleResponse(BaseModel):
     unit_price:   float
     total_amount: float
     inventory_risk: Optional[Dict[str, Any]] = None
+    alarm_triggered: Optional[bool] = False
+    alarm_message: Optional[str] = None
+    alarm_level: Optional[str] = None
+    recommendation_id: Optional[int] = None
+    purchase_order_id: Optional[int] = None
 
     class Config:
         from_attributes = True

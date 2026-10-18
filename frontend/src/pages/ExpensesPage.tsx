@@ -85,19 +85,69 @@ export const ExpensesPage: React.FC = () => {
     }
   };
 
-  const fillSampleExpense = () => {
-    const samples = [
-      { category: 'Utilities', amount: 8450, description: 'Commercial Electricity & Water Board bill' },
-      { category: 'Employee Wages', amount: 24000, description: 'Store assistant & night security helper wages' },
-      { category: 'Equipment & Maintenance', amount: 4200, description: 'Deep refrigerator compressor gas refill' },
-    ];
-    const picked = samples[Math.floor(Math.random() * samples.length)];
+  const EXPENSE_CASES = [
+    {
+      label: '⚡ Utility Spike (+53.6%)',
+      badge: 'HIGH ANOMALY',
+      color: '#ef4444',
+      category: 'Electricity & Utilities',
+      amount: 8450,
+      description: 'Monthly commercial meter bill — continuous dairy chiller compressor runtime (+53.6% spike vs ₹5,500 baseline)',
+    },
+    {
+      label: '❄️ Emergency Repair (+166.7%)',
+      badge: 'CRITICAL SPIKE',
+      color: '#dc2626',
+      category: 'Equipment & Maintenance',
+      amount: 3200,
+      description: 'Emergency dairy deep freezer refrigerant gas refill and gasket replacement (+166.7% spike vs ₹1,200 base)',
+    },
+    {
+      label: '🏢 Store Rent (0% Stable)',
+      badge: 'FIXED BASELINE',
+      color: '#10b981',
+      category: 'Rent & Lease',
+      amount: 25000,
+      description: 'Fixed commercial store premise monthly rent agreement (0.0% variance)',
+    },
+    {
+      label: '🚚 Mandi Transport (+4.6%)',
+      badge: 'NORMAL RUN',
+      color: '#3b82f6',
+      category: 'Logistics & Transport',
+      amount: 6800,
+      description: 'APMC wholesale mandi 3-wheeler tempo freight charges (Normal +4.6% diesel variance)',
+    },
+    {
+      label: '📱 WhatsApp Ads (New)',
+      badge: 'NOVEL SPEND',
+      color: '#8b5cf6',
+      category: 'Digital Marketing & Adverts',
+      amount: 3500,
+      description: 'Local WhatsApp Business Kirana catalog boost & Google Maps promo (Zero baseline novel spend)',
+    },
+    {
+      label: '🎉 Diwali Bonus (Seasonal)',
+      badge: 'SEASONAL NOVEL',
+      color: '#d97706',
+      category: 'Employee Wages',
+      amount: 5000,
+      description: 'Annual festive sweet box & goodwill bonus for store helper and delivery boy',
+    },
+  ];
+
+  const fillSampleExpenseCase = (c: typeof EXPENSE_CASES[0]) => {
     setFormData({
-      category: picked.category,
-      current_period_amount: picked.amount,
-      description: picked.description,
+      category: c.category,
+      current_period_amount: c.amount,
+      description: c.description,
       date: new Date().toISOString().split('T')[0],
     });
+  };
+
+  const fillSampleExpense = () => {
+    const picked = EXPENSE_CASES[Math.floor(Math.random() * EXPENSE_CASES.length)];
+    fillSampleExpenseCase(picked);
   };
 
   const handleCheckTrend = async (category: string) => {
@@ -224,17 +274,50 @@ export const ExpensesPage: React.FC = () => {
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: 24, marginBottom: 28 }}>
         {/* Log Expense Card */}
         <div className="card">
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16, flexWrap: 'wrap', gap: 10 }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12, flexWrap: 'wrap', gap: 10 }}>
             <h2 className="card-title" style={{ margin: 0 }}>➕ Log Expenditure</h2>
             <button
               type="button"
               className="btn btn-sm btn-secondary"
               onClick={fillSampleExpense}
               style={{ background: '#fef3c7', color: '#b45309', border: '1px solid #fde68a', fontWeight: 600 }}
-              title="Auto-fill with typical MSME operating expenditure"
+              title="Auto-fill with random operating expenditure"
             >
-              ✨ Auto-Fill Sample Data
+              🎲 Random Sample
             </button>
+          </div>
+
+          {/* 1-Click Operational Case Selector Chips */}
+          <div style={{ marginBottom: 16 }}>
+            <label style={{ fontSize: '11px', fontWeight: 700, color: '#64748b', textTransform: 'uppercase', display: 'block', marginBottom: 6 }}>
+              Quick Preset Test Cases:
+            </label>
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
+              {EXPENSE_CASES.map((c) => (
+                <button
+                  key={c.label}
+                  type="button"
+                  onClick={() => fillSampleExpenseCase(c)}
+                  style={{
+                    padding: '5px 10px',
+                    borderRadius: '6px',
+                    fontSize: '11px',
+                    fontWeight: 700,
+                    border: `1px solid ${c.color}40`,
+                    background: `${c.color}10`,
+                    color: c.color,
+                    cursor: 'pointer',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '4px',
+                    transition: 'all 0.15s ease',
+                  }}
+                  title={c.description}
+                >
+                  <span>{c.label}</span>
+                </button>
+              ))}
+            </div>
           </div>
           <form onSubmit={handleCreateExpense}>
             <div className="form-group" style={{ marginBottom: 14 }}>

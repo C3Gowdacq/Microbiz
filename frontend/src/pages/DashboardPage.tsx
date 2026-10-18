@@ -367,14 +367,14 @@ export const DashboardPage: React.FC = () => {
             </Link>
           </div>
 
-          {/* Card 2: Digital Twin Sandbox */}
+          {/* Card 2: AI Approvals & HITL Execution */}
           <div style={{
-            background: 'linear-gradient(135deg, #092c24 0%, #064e3b 100%)',
+            background: 'linear-gradient(135deg, #0f172a 0%, #1e1b4b 100%)',
             borderRadius: '14px',
             padding: '20px 24px',
             color: '#f8fafc',
-            border: '1px solid #065f46',
-            boxShadow: '0 4px 20px rgba(6, 78, 59, 0.15)',
+            border: '1px solid #312e81',
+            boxShadow: '0 4px 20px rgba(49, 46, 129, 0.15)',
             display: 'flex',
             flexDirection: 'column',
             justifyContent: 'space-between',
@@ -387,7 +387,7 @@ export const DashboardPage: React.FC = () => {
               right: '-15px',
               width: '90px',
               height: '90px',
-              background: 'radial-gradient(circle, rgba(16,185,129,0.25) 0%, transparent 70%)',
+              background: 'radial-gradient(circle, rgba(99,102,241,0.25) 0%, transparent 70%)',
               borderRadius: '50%'
             }}></div>
             <div>
@@ -397,27 +397,27 @@ export const DashboardPage: React.FC = () => {
                   fontWeight: 700,
                   textTransform: 'uppercase',
                   letterSpacing: '0.06em',
-                  background: 'rgba(16, 185, 129, 0.25)',
-                  color: '#6ee7b7',
+                  background: 'rgba(99, 102, 241, 0.25)',
+                  color: '#c7d2fe',
                   padding: '4px 10px',
                   borderRadius: '20px',
-                  border: '1px solid rgba(16, 185, 129, 0.4)'
+                  border: '1px solid rgba(99, 102, 241, 0.4)'
                 }}>
-                  Stochastic Simulation
+                  Human-in-the-Loop Gateway
                 </span>
-                <span style={{ fontSize: '12px', color: '#a7f3d0' }}>1,000 Monte Carlo Iterations</span>
+                <span style={{ fontSize: '12px', color: '#c7d2fe' }}>1-Click Merchant Authorization</span>
               </div>
               <h3 style={{ fontSize: '17px', fontWeight: 700, color: '#ffffff', margin: '0 0 6px 0' }}>
-                🎲 Kirana Digital Twin Sandbox
+                🤖 AI Approvals & Store Execution
               </h3>
-              <p style={{ fontSize: '13px', color: '#d1fae5', lineHeight: '1.45', margin: '0 0 16px 0' }}>
-                Stress-test 90-day cash solvency against inflation, demand shocks, and khata defaults. Evaluates Value-at-Risk (VaR 95%) and survival probability.
+              <p style={{ fontSize: '13px', color: '#e0e7ff', lineHeight: '1.45', margin: '0 0 16px 0' }}>
+                Review autonomous purchase orders, customer WhatsApp payment reminder drafts, and supplier dispatches. Approve or adjust with a single tap.
               </p>
             </div>
-            <Link to="/simulation" style={{ textDecoration: 'none' }}>
+            <Link to="/recommendations" style={{ textDecoration: 'none' }}>
               <button style={{
                 width: '100%',
-                background: 'linear-gradient(135deg, #10b981 0%, #059669 100%)',
+                background: 'linear-gradient(135deg, #e23744 0%, #c92534 100%)',
                 color: '#ffffff',
                 border: 'none',
                 padding: '10px 16px',
@@ -430,9 +430,9 @@ export const DashboardPage: React.FC = () => {
                 justifyContent: 'center',
                 gap: '8px',
                 transition: 'all 0.2s ease',
-                boxShadow: '0 2px 8px rgba(16, 185, 129, 0.3)'
+                boxShadow: '0 2px 8px rgba(226, 55, 68, 0.3)'
               }}>
-                <span>Launch Monte Carlo Sandbox</span>
+                <span>Open AI Approvals Inbox</span>
                 <span>→</span>
               </button>
             </Link>

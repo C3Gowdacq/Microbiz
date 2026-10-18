@@ -8,6 +8,7 @@ Expenses, Dashboard, and Business Settings.
 
 import os
 import sys
+import asyncio
 from datetime import date, datetime, timezone
 from typing import Dict, Any, List, Optional
 
@@ -19,8 +20,9 @@ from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy.orm import Session
 from sqlalchemy import func
 
-from backend.app.database import engine, Base, get_db
-from backend.app.models import Recommendation, HumanAction, PurchaseOrder, PurchaseOrderItem, AuditLog
+from backend.app.database import engine, Base, get_db, SessionLocal
+from backend.app.models import Recommendation, HumanAction, PurchaseOrder, PurchaseOrderItem, AuditLog, BusinessSettings
+from backend.app.services.agent_orchestrator import run_all_agents
 
 from backend.app.schemas import (
     SalesForecastRequest,
@@ -68,6 +70,33 @@ app = FastAPI(
     description="AI-powered business intelligence API for small retail businesses.",
     version="2.0.0",
 )
+
+def _run_sync_sweep():
+    """Execute autonomous agent sweep in a separate background thread."""
+    db = SessionLocal()
+    try:
+        settings = db.query(BusinessSettings).filter(BusinessSettings.id == 1).first()
+        if settings and settings.autonomous_mode:
+            run_all_agents(db, trigger="autonomous_background_loop")
+    finally:
+        db.close()
+
+async def run_autonomous_background_scheduler():
+    """
+    Continuous non-blocking background autonomous intelligence daemon.
+    Runs asynchronously in a separate thread so HTTP requests remain instantaneous.
+    """
+    await asyncio.sleep(10)
+    while True:
+        try:
+            await asyncio.to_thread(_run_sync_sweep)
+        except Exception as e:
+            print(f"[AUTONOMOUS_DAEMON_ERROR] {e}", file=sys.stderr)
+        await asyncio.sleep(120)
+
+@app.on_event("startup")
+async def start_autonomous_worker():
+    asyncio.create_task(run_autonomous_background_scheduler())
 
 # ── CORS Middleware ───────────────────────────────────────────────────────────
 app.add_middleware(

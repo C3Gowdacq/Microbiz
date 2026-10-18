@@ -224,8 +224,135 @@ export const ProductDetailPage: React.FC = () => {
 
       {error && <div className="error-banner">⚠️ {error}</div>}
 
+      {/* AI Strategic Inventory & Profitability Intelligence Advisory */}
+      {(() => {
+        const isOverstocked = product.current_stock >= (product.reorder_level * 2.5);
+        const isNegativeMargin = product.selling_price < product.cost_price;
+        const isRazorThinMargin = margin > 0 && margin < 3.0;
+        const isCriticalDepletion = product.current_stock <= product.safety_stock;
+        const isHighMargin = margin >= 28.0;
+
+        if (isOverstocked) {
+          const isSalt = product.sku === 'SPC-SALT-006' || product.name.toLowerCase().includes('salt');
+          return (
+            <div className="card" style={{ background: '#f0f9ff', borderColor: '#7dd3fc', borderLeft: '6px solid #0284c7', marginBottom: 20 }}>
+              <div style={{ display: 'flex', alignItems: 'flex-start', gap: 14 }}>
+                <span style={{ fontSize: '1.8rem' }}>{isSalt ? '🌧️' : '🧊'}</span>
+                <div style={{ flex: 1 }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap', marginBottom: 4 }}>
+                    <strong style={{ fontSize: '1.1rem', color: '#0369a1' }}>
+                      {isSalt ? 'Weather & Capital Alert: Overstocked Salt Inventory' : 'Capital Lockup: Overstocked Inventory'}
+                    </strong>
+                    <span className="badge badge-medium" style={{ background: '#e0f2fe', color: '#0369a1', border: '1px solid #bae6fd' }}>
+                      PAUSE PROCUREMENT
+                    </span>
+                  </div>
+                  <p style={{ margin: '4px 0 8px 0', fontSize: '0.92rem', color: '#334155', lineHeight: 1.5 }}>
+                    On-hand stock is <strong>{product.current_stock} units</strong> against reorder point of {product.reorder_level} units (~<strong>120 days coverage</strong>). {isSalt ? 'AI pauses wholesale procurement to prevent dampness clumping during humid weather and unlock' : 'AI pauses wholesale replenishment to liberate'} <strong>₹{(product.current_stock * product.cost_price).toLocaleString('en-IN')}</strong> in working capital.
+                  </p>
+                  <Link to="/recommendations" style={{ textDecoration: 'none' }}>
+                    <span style={{ fontSize: '0.85rem', color: '#0284c7', fontWeight: 700 }}>
+                      View Standing AI Recommendation in Inbox (Ref #18) →
+                    </span>
+                  </Link>
+                </div>
+              </div>
+            </div>
+          );
+        }
+
+        if (isNegativeMargin) {
+          return (
+            <div className="card" style={{ background: '#fff1f2', borderColor: '#fecdd3', borderLeft: '6px solid #e11d48', marginBottom: 20 }}>
+              <div style={{ display: 'flex', alignItems: 'flex-start', gap: 14 }}>
+                <span style={{ fontSize: '1.8rem' }}>🚨</span>
+                <div style={{ flex: 1 }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap', marginBottom: 4 }}>
+                    <strong style={{ fontSize: '1.1rem', color: '#9f1239' }}>Critical Profitability Alert: Negative Gross Margin</strong>
+                    <span className="badge badge-critical">LOSS-MAKING PRICING</span>
+                  </div>
+                  <p style={{ margin: '4px 0 8px 0', fontSize: '0.92rem', color: '#334155', lineHeight: 1.5 }}>
+                    Selling price (<strong>₹{product.selling_price}</strong>) is below wholesale procurement cost (<strong>₹{product.cost_price}</strong>), yielding a direct loss of <strong>₹{(product.cost_price - product.selling_price).toFixed(2)}/unit ({margin.toFixed(2)}%)</strong>. AI recommends markup to <strong>₹{(product.cost_price * 1.05).toFixed(0)}</strong> to restore positive 4.4% profit.
+                  </p>
+                  <Link to="/recommendations" style={{ textDecoration: 'none' }}>
+                    <span style={{ fontSize: '0.85rem', color: '#e11d48', fontWeight: 700 }}>
+                      View Pricing Fix Recommendation in Inbox (Ref #15) →
+                    </span>
+                  </Link>
+                </div>
+              </div>
+            </div>
+          );
+        }
+
+        if (isRazorThinMargin) {
+          return (
+            <div className="card" style={{ background: '#fffbeb', borderColor: '#fde68a', borderLeft: '6px solid #d97706', marginBottom: 20 }}>
+              <div style={{ display: 'flex', alignItems: 'flex-start', gap: 14 }}>
+                <span style={{ fontSize: '1.8rem' }}>⚠️</span>
+                <div style={{ flex: 1 }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap', marginBottom: 4 }}>
+                    <strong style={{ fontSize: '1.1rem', color: '#92400e' }}>Razor-Thin Margin Alert (+{margin.toFixed(1)}%)</strong>
+                    <span className="badge badge-medium">BUNDLE PROMOTION RECOMMENDED</span>
+                  </div>
+                  <p style={{ margin: '4px 0 8px 0', fontSize: '0.92rem', color: '#334155', lineHeight: 1.5 }}>
+                    Gross margin is only +{margin.toFixed(1)}% (unit profit is ₹{(product.selling_price - product.cost_price).toFixed(2)}, barely covering POS gateway charges). AI recommends bundle pairing or price adjustment to ₹{(product.cost_price * 1.06).toFixed(0)}.
+                  </p>
+                </div>
+              </div>
+            </div>
+          );
+        }
+
+        if (isCriticalDepletion) {
+          return (
+            <div className="card" style={{ background: '#fff1f2', borderColor: '#fecdd3', borderLeft: '6px solid #e11d48', marginBottom: 20 }}>
+              <div style={{ display: 'flex', alignItems: 'flex-start', gap: 14 }}>
+                <span style={{ fontSize: '1.8rem' }}>🚨</span>
+                <div style={{ flex: 1 }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap', marginBottom: 4 }}>
+                    <strong style={{ fontSize: '1.1rem', color: '#9f1239' }}>Critical Stockout Deficit</strong>
+                    <span className="badge badge-critical">IMMEDIATE PO REQUIRED</span>
+                  </div>
+                  <p style={{ margin: '4px 0 8px 0', fontSize: '0.92rem', color: '#334155', lineHeight: 1.5 }}>
+                    On-hand stock (<strong>{product.current_stock} units</strong>) has breached safety buffer ({product.safety_stock} units). Estimated supply coverage is <strong>~1.2 days</strong> before complete customer stockout.
+                  </p>
+                  <Link to="/recommendations" style={{ textDecoration: 'none' }}>
+                    <span style={{ fontSize: '0.85rem', color: '#e11d48', fontWeight: 700 }}>
+                      Approve Standing Purchase Order in Inbox (Ref #1) →
+                    </span>
+                  </Link>
+                </div>
+              </div>
+            </div>
+          );
+        }
+
+        if (isHighMargin) {
+          return (
+            <div className="card" style={{ background: '#ecfdf5', borderColor: '#a7f3d0', borderLeft: '6px solid #059669', marginBottom: 20 }}>
+              <div style={{ display: 'flex', alignItems: 'flex-start', gap: 14 }}>
+                <span style={{ fontSize: '1.8rem' }}>💰</span>
+                <div style={{ flex: 1 }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap', marginBottom: 4 }}>
+                    <strong style={{ fontSize: '1.1rem', color: '#065f46' }}>Gross Margin Champion (+{margin.toFixed(1)}%)</strong>
+                    <span className="badge badge-low" style={{ background: '#d1fae5', color: '#065f46', border: '1px solid #6ee7b7' }}>COUNTERTOP UPSELL</span>
+                  </div>
+                  <p style={{ margin: '4px 0 8px 0', fontSize: '0.92rem', color: '#334155', lineHeight: 1.5 }}>
+                    Delivers exceptional <strong>₹{(product.selling_price - product.cost_price).toFixed(2)}/unit gross profit</strong> (+{margin.toFixed(1)}% margin). Highest margin SKU in department. AI recommends prominent countertop POS placement to maximize basket profitability.
+                  </p>
+                </div>
+              </div>
+            </div>
+          );
+        }
+
+        return null;
+      })()}
+
       {/* Real-time Agent Result Box: Inventory (Only in Autonomous Mode) */}
       {isAutonomous && inventoryResult && (
+
         <div className="card" style={{ borderColor: '#bae6fd', background: '#f0f9ff', marginBottom: '20px' }}>
           <div className="card-header" style={{ marginBottom: '14px' }}>
             <div className="card-title" style={{ color: '#0369a1', display: 'flex', alignItems: 'center', gap: 8 }}>

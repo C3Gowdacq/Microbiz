@@ -17,7 +17,7 @@ export const Sidebar: React.FC = () => {
       }
     };
     fetchPending();
-    const interval = setInterval(fetchPending, 10000);
+    const interval = setInterval(fetchPending, 30000);
     return () => clearInterval(interval);
   }, [location]);
 
@@ -83,128 +83,92 @@ export const Sidebar: React.FC = () => {
 
       {/* Navigation */}
       <nav className="sidebar-nav">
-        {isAutonomous ? (
-          /* ───────── AUTONOMOUS INTERFACE (STREAMLINED: ONLY 3 CORE + SETTINGS) ───────── */
-          <>
-            <div style={{ padding: '4px 12px', fontSize: '10px', fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
-              Autonomous Operations
-            </div>
+        {/* ───────── AUTONOMOUS AI ENGINE ───────── */}
+        <div style={{ padding: '4px 12px', fontSize: '10px', fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+          Autonomous AI Engine
+        </div>
 
-            <NavLink to="/" className={({ isActive }) => `nav-link ${isActive ? 'active' : ''}`} end>
-              <div className="nav-link-content">
-                <span className="nav-icon">📊</span>
-                <span>Executive Dashboard</span>
-              </div>
-            </NavLink>
+        <NavLink to="/agent-graph" className={({ isActive }) => `nav-link ${isActive ? 'active' : ''}`}>
+          <div className="nav-link-content">
+            <span className="nav-icon">🧠</span>
+            <span>LangGraph DAG</span>
+          </div>
+        </NavLink>
 
-            <NavLink to="/sales" className={({ isActive }) => `nav-link ${isActive ? 'active' : ''}`}>
-              <div className="nav-link-content">
-                <span className="nav-icon">🛒</span>
-                <span>Sales Entry (POS)</span>
-              </div>
-            </NavLink>
+        <NavLink to="/recommendations" className={({ isActive }) => `nav-link ${isActive ? 'active' : ''}`}>
+          <div className="nav-link-content">
+            <span className="nav-icon">🤖</span>
+            <span>AI Approvals</span>
+          </div>
+          {pendingCount > 0 && <span className="nav-badge">{pendingCount}</span>}
+        </NavLink>
 
-            <NavLink to="/recommendations" className={({ isActive }) => `nav-link ${isActive ? 'active' : ''}`}>
-              <div className="nav-link-content">
-                <span className="nav-icon">🤖</span>
-                <span>AI Approvals</span>
-              </div>
-              {pendingCount > 0 && <span className="nav-badge">{pendingCount}</span>}
-            </NavLink>
 
-            <NavLink to="/agent-graph" className={({ isActive }) => `nav-link ${isActive ? 'active' : ''}`}>
-              <div className="nav-link-content">
-                <span className="nav-icon">🧠</span>
-                <span>LangGraph DAG</span>
-              </div>
-            </NavLink>
+        <NavLink to="/forecasting" className={({ isActive }) => `nav-link ${isActive ? 'active' : ''}`}>
+          <div className="nav-link-content">
+            <span className="nav-icon">🔮</span>
+            <span>Demand Forecasting</span>
+          </div>
+        </NavLink>
 
-            <NavLink to="/simulation" className={({ isActive }) => `nav-link ${isActive ? 'active' : ''}`}>
-              <div className="nav-link-content">
-                <span className="nav-icon">🎲</span>
-                <span>Digital Twin Sandbox</span>
-              </div>
-            </NavLink>
+        {/* ───────── STORE OPERATIONS & KIRANA LEDGER ───────── */}
+        <div style={{ marginTop: '16px', padding: '4px 12px', fontSize: '10px', fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+          Store Operations
+        </div>
 
-            <div style={{ marginTop: '16px', padding: '4px 12px', fontSize: '10px', fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
-              System
-            </div>
+        <NavLink to="/" className={({ isActive }) => `nav-link ${isActive ? 'active' : ''}`} end>
+          <div className="nav-link-content">
+            <span className="nav-icon">📊</span>
+            <span>{isAutonomous ? 'Executive Dashboard' : 'Store Dashboard'}</span>
+          </div>
+        </NavLink>
 
-            <NavLink to="/settings" className={({ isActive }) => `nav-link ${isActive ? 'active' : ''}`}>
-              <div className="nav-link-content">
-                <span className="nav-icon">⚙️</span>
-                <span>Settings</span>
-              </div>
-            </NavLink>
-          </>
-        ) : (
-          /* ───────── MANUAL INTERFACE (FULL MANUAL KIRANA MODULES - ZERO AI ENGINE) ───────── */
-          <>
-            <div style={{ padding: '4px 12px', fontSize: '10px', fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
-              Store Management
-            </div>
+        <NavLink to="/products" className={({ isActive }) => `nav-link ${isActive ? 'active' : ''}`}>
+          <div className="nav-link-content">
+            <span className="nav-icon">📦</span>
+            <span>Grocery & Stock</span>
+          </div>
+        </NavLink>
 
-            <NavLink to="/" className={({ isActive }) => `nav-link ${isActive ? 'active' : ''}`} end>
-              <div className="nav-link-content">
-                <span className="nav-icon">📊</span>
-                <span>Dashboard</span>
-              </div>
-            </NavLink>
+        <NavLink to="/sales" className={({ isActive }) => `nav-link ${isActive ? 'active' : ''}`}>
+          <div className="nav-link-content">
+            <span className="nav-icon">🛒</span>
+            <span>Sales Entry (POS)</span>
+          </div>
+        </NavLink>
 
-            <NavLink to="/products" className={({ isActive }) => `nav-link ${isActive ? 'active' : ''}`}>
-              <div className="nav-link-content">
-                <span className="nav-icon">📦</span>
-                <span>Grocery & Stock</span>
-              </div>
-            </NavLink>
+        <NavLink to="/purchase-orders" className={({ isActive }) => `nav-link ${isActive ? 'active' : ''}`}>
+          <div className="nav-link-content">
+            <span className="nav-icon">📝</span>
+            <span>Purchase Orders</span>
+          </div>
+        </NavLink>
 
-            <NavLink to="/sales" className={({ isActive }) => `nav-link ${isActive ? 'active' : ''}`}>
-              <div className="nav-link-content">
-                <span className="nav-icon">🛒</span>
-                <span>Sales Entry (POS)</span>
-              </div>
-            </NavLink>
+        <NavLink to="/customers" className={({ isActive }) => `nav-link ${isActive ? 'active' : ''}`}>
+          <div className="nav-link-content">
+            <span className="nav-icon">👥</span>
+            <span>Customer Khata</span>
+          </div>
+        </NavLink>
 
-            <NavLink to="/purchase-orders" className={({ isActive }) => `nav-link ${isActive ? 'active' : ''}`}>
-              <div className="nav-link-content">
-                <span className="nav-icon">📝</span>
-                <span>Purchase Orders</span>
-              </div>
-            </NavLink>
+        <NavLink to="/expenses" className={({ isActive }) => `nav-link ${isActive ? 'active' : ''}`}>
+          <div className="nav-link-content">
+            <span className="nav-icon">💸</span>
+            <span>Expense Tracker</span>
+          </div>
+        </NavLink>
 
-            <NavLink to="/customers" className={({ isActive }) => `nav-link ${isActive ? 'active' : ''}`}>
-              <div className="nav-link-content">
-                <span className="nav-icon">👥</span>
-                <span>Customer Khata</span>
-              </div>
-            </NavLink>
+        {/* ───────── SYSTEM PREFERENCES ───────── */}
+        <div style={{ marginTop: '16px', padding: '4px 12px', fontSize: '10px', fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+          System
+        </div>
 
-            <NavLink to="/expenses" className={({ isActive }) => `nav-link ${isActive ? 'active' : ''}`}>
-              <div className="nav-link-content">
-                <span className="nav-icon">💸</span>
-                <span>Expense Tracker</span>
-              </div>
-            </NavLink>
-
-            <NavLink to="/forecasting" className={({ isActive }) => `nav-link ${isActive ? 'active' : ''}`}>
-              <div className="nav-link-content">
-                <span className="nav-icon">🔮</span>
-                <span>Demand Forecasting</span>
-              </div>
-            </NavLink>
-
-            <div style={{ marginTop: '16px', padding: '4px 12px', fontSize: '10px', fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
-              Preferences
-            </div>
-
-            <NavLink to="/settings" className={({ isActive }) => `nav-link ${isActive ? 'active' : ''}`}>
-              <div className="nav-link-content">
-                <span className="nav-icon">⚙️</span>
-                <span>Settings</span>
-              </div>
-            </NavLink>
-          </>
-        )}
+        <NavLink to="/settings" className={({ isActive }) => `nav-link ${isActive ? 'active' : ''}`}>
+          <div className="nav-link-content">
+            <span className="nav-icon">⚙️</span>
+            <span>Settings</span>
+          </div>
+        </NavLink>
       </nav>
 
       {/* Sidebar Footer */}

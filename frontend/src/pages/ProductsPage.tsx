@@ -249,6 +249,8 @@ export const ProductsPage: React.FC = () => {
         <div className="product-catalog-grid">
           {filtered.map((product) => {
             const isLowStock = product.current_stock < product.reorder_level;
+            const isOverstocked = product.current_stock >= product.reorder_level * 2.5;
+            const isSalt = product.sku === 'SPC-SALT-006' || product.name.toLowerCase().includes('salt');
             const margin =
               product.selling_price > 0
                 ? ((product.selling_price - product.cost_price) / product.selling_price) * 100
@@ -265,6 +267,10 @@ export const ProductsPage: React.FC = () => {
                   <span className="product-category-chip">{category}</span>
                   {isLowStock ? (
                     <span className="badge badge-high">⚠️ Reorder Needed</span>
+                  ) : isOverstocked ? (
+                    <span className="badge badge-medium" style={{ background: '#e0f2fe', color: '#0369a1', border: '1px solid #7dd3fc', fontWeight: 700 }}>
+                      {isSalt ? '🌧️ Monsoon Clump Risk' : '🧊 Overstocked (120d+)'}
+                    </span>
                   ) : (
                     <span className="badge badge-low">✓ In Stock</span>
                   )}
@@ -362,6 +368,9 @@ export const ProductsPage: React.FC = () => {
                 const coverageDays = (product.current_stock / dailyBurn).toFixed(1);
                 const recOrderQty = Math.max(0, Math.ceil(product.reorder_level * 1.5 - product.current_stock));
 
+                const isOverstocked = product.current_stock >= product.reorder_level * 2.5;
+                const isSalt = product.sku === 'SPC-SALT-006' || product.name.toLowerCase().includes('salt');
+
                 let riskLevel = 'HEALTHY';
                 let riskBadgeClass = 'badge-low';
                 if (product.current_stock <= 0) {
@@ -372,6 +381,9 @@ export const ProductsPage: React.FC = () => {
                   riskBadgeClass = 'badge-high';
                 } else if (product.current_stock < product.reorder_level) {
                   riskLevel = 'REORDER';
+                  riskBadgeClass = 'badge-medium';
+                } else if (isOverstocked) {
+                  riskLevel = isSalt ? '🌧️ WEATHER RISK' : '🧊 OVERSTOCKED';
                   riskBadgeClass = 'badge-medium';
                 }
 

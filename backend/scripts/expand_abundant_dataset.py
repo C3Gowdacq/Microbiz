@@ -424,37 +424,43 @@ def seed_massive_data():
             (6, "khata", "customer", customers_list[0][0].id, None, "pause_credit", "critical", "pending",
              "Khata risk alert (CRITICAL): 'Sharma Mess & Catering' has ₹4,850.00 overdue by 68 days (limit: 30 days).",
              "Halt uncollateralized credit and issue legal 48-hour formal collection notice.",
-             "Customer has exceeded statutory 30-day limit by 38 days without partial payment. High default probability."),
+             "Customer has exceeded statutory 30-day limit by 38 days without partial payment. High default probability.",
+             "Dear Sharma Mess & Catering, your khata balance of ₹4,850.00 is 68 days overdue. Store credit has been temporarily placed on hold. Please clear this balance via UPI to reactivate credit ordering privileges."),
 
             # 7. Chronic Delinquent Credit Hold (Vikram Singh)
             (7, "khata", "customer", customers_list[2][0].id, None, "pause_credit", "critical", "pending",
              "Khata risk alert (CRITICAL): 'Vikram Singh (Contractor)' balance ₹8,200.00 is 64 days overdue.",
              "Freeze further store credit. Issue formal WhatsApp UPI collection link.",
-             "Contractor credit aging beyond 60 days. Risk of complete bad debt write-off if unaddressed."),
+             "Contractor credit aging beyond 60 days. Risk of complete bad debt write-off if unaddressed.",
+             "Hello Vikram Singh, your construction supply credit of ₹8,200.00 is 64 days overdue. Kindly settle via UPI (merchant@upi) or visit Sharma Provision Store today to avoid credit cancellation."),
 
             # 8. Severe Overdue Credit Hold (Gupta General Stores)
             (8, "khata", "customer", customers_list[1][0].id, None, "pause_credit", "high", "pending",
              "Khata risk alert (HIGH): 'Gupta General Stores' balance ₹3,400.00 is 52 days overdue.",
              "Automated credit hold. Dispatch polite automated payment reminder link.",
-             "Outstanding invoice overdue by 22 days past limit. Require ₹1,500 down payment before next dispatch."),
+             "Outstanding invoice overdue by 22 days past limit. Require ₹1,500 down payment before next dispatch.",
+             "Dear Gupta General Stores, your invoice balance of ₹3,400.00 is 52 days overdue. Kindly remit at least ₹1,500.00 today via UPI to resume scheduled trade dispatches. Thank you!"),
 
             # 9. Courtesy Khata SMS Reminder (Bawarchi Biryani)
             (9, "khata", "customer", customers_list[10][0].id, None, "payment_reminder", "medium", "pending",
              "Khata risk alert (MEDIUM): 'Bawarchi Biryani Centre' balance ₹7,600.00 is 42 days overdue.",
              "Send polite WhatsApp collection reminder with UPI QR code link.",
-             "B2B restaurant buyer with good historical volume. Friendly reminder prevents aging into bad debt."),
+             "B2B restaurant buyer with good historical volume. Friendly reminder prevents aging into bad debt.",
+             "Namaste Bawarchi Biryani Centre! MicroBiz reminder: Your outstanding store khata balance is ₹7,600.00 (overdue 42 days). Please click here to pay via UPI: upi://pay?pa=merchant@upi&am=7600. Thank you!"),
 
             # 10. Courtesy Khata SMS Reminder (Udupi Sagar Hotel)
             (10, "khata", "customer", customers_list[13][0].id, None, "payment_reminder", "medium", "pending",
              "Khata risk alert (MEDIUM): 'Udupi Sagar Hotel' balance ₹18,500.00 is 35 days overdue.",
              "Initiate weekly ledger reconciliation with hotel procurement manager.",
-             "High-volume commercial account. Current invoice due by 5 days; early touchpoint accelerates recovery."),
+             "High-volume commercial account. Current invoice due by 5 days; early touchpoint accelerates recovery.",
+             "Dear Udupi Sagar Hotel Management, this is a formal weekly ledger statement from Sharma Provision Store regarding your outstanding balance of ₹18,500.00 across Invoice #14 (35 days overdue). Kindly remit via UPI (merchant@upi) or Bank Transfer to maintain active credit procurement privileges. Thank you!"),
 
             # 11. Overdue Auto-SMS (Pooja Sweets)
             (11, "khata", "customer", customers_list[4][0].id, None, "payment_reminder", "medium", "pending",
              "Khata alert (MEDIUM): 'Pooja Sweets & Bakery' balance ₹6,500.00 is 22 days overdue.",
              "Send automated SMS balance reminder before month-end statement closure.",
-             "Commercial sweet shop invoice approaching 30-day default window."),
+             "Commercial sweet shop invoice approaching 30-day default window.",
+             "Dear Pooja Sweets & Bakery, gentle reminder: Your khata balance of ₹6,500.00 is 22 days overdue. Please clear this prior to month-end ledger closure. Thank you!"),
 
             # 12. Electricity Bill Spike Anomaly
             (12, "expense", "expense_category", "Electricity & Utilities", None, "investigate_anomaly", "high", "pending",
@@ -508,10 +514,13 @@ def seed_massive_data():
             (20, "khata", "customer", customers_list[6][0].id, None, "increase_credit_limit", "low", "pending",
              "Khata growth alert (LOW): 'Sri Venkateshwara Bakery' credit utilization 71% with 100% on-time settlement.",
              "Approve credit limit expansion from ₹20,000 to ₹30,000 to capture larger weekly flour orders.",
-             "Punctual commercial bakery buyer with steady volume growth. Higher limit will increase weekly store revenue by ₹8,000."),
+             "Punctual commercial bakery buyer with steady volume growth. Higher limit will increase weekly store revenue by ₹8,000.",
+             "Dear Sri Venkateshwara Bakery, based on your 100% on-time payment track record, Sharma Provision Store has increased your B2B credit limit from ₹20,000 to ₹30,000 for your weekly bakery bulk orders!"),
         ]
 
-        for rid, mod, etype, eid, poid, pact, prio, st, reason, summ, rsn in recs_data:
+        for item in recs_data:
+            rid, mod, etype, eid, poid, pact, prio, st, reason, summ, rsn, *extra = item
+            suggested_msg = extra[0] if extra else None
             rec = Recommendation(
                 id=rid,
                 module=mod,
@@ -524,6 +533,7 @@ def seed_massive_data():
                 reason=reason,
                 llm_summary=summ,
                 llm_reasoning=rsn,
+                suggested_customer_message=suggested_msg,
                 created_at=now - timedelta(minutes=rid * 3),
             )
             db.add(rec)
